@@ -90,6 +90,11 @@ $("example").onclick = () => {
 };
 async function run(question = "") {
   if (busy) return;
+  const snapshot = JSON.stringify({
+    text: $("original").value,
+    second: $("revised").value,
+    role: $("role").value,
+  });
   busy = true;
   status("Analyzing and checking source references…");
   document.querySelector(".results").setAttribute("aria-busy", "true");
@@ -109,6 +114,17 @@ async function run(question = "") {
     });
     const data = await r.json();
     if (!r.ok) throw Error(data.error || "Request failed");
+    if (
+      snapshot !==
+      JSON.stringify({
+        text: $("original").value,
+        second: $("revised").value,
+        role: $("role").value,
+      })
+    ) {
+      status("Input changed during analysis. Run a new review.");
+      return;
+    }
     show(data, "LIVE GEMINI");
   } catch (e) {
     status(e.message);
@@ -123,6 +139,9 @@ $("ask").onclick = () => {
   else status("Enter a question first.");
 };
 $("file").onchange = async (e) => {
+  result = null;
+  $("export").disabled = true;
+  $("output").replaceChildren();
   try {
     const file = e.target.files[0];
     if (!file) return;

@@ -57,7 +57,24 @@ export default async function handler(req, res) {
               },
             ],
           },
-          contents: [{ parts: [{ text: JSON.stringify(input) }] }],
+          contents: [
+            {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    original: input.text,
+                    revised: input.second,
+                    role: input.role,
+                  }),
+                },
+                {
+                  text: input.question
+                    ? `TASK: Answer this question directly in summary: ${input.question}\nIf the answer is not stated in these documents, explicitly say it is not specified. Do not substitute a generic document summary. Findings should support your answer.`
+                    : "TASK: Review the original and compare the revised version if provided. Explain commitments from the selected role.",
+                },
+              ],
+            },
+          ],
           generationConfig: {
             responseMimeType: "application/json",
             responseJsonSchema: z.toJSONSchema(resultSchema),

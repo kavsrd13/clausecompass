@@ -19,16 +19,14 @@ export default async function handler(req, res) {
       },
     );
     const d = await r.json();
-    return res
-      .status(r.status)
-      .json({
-        models: d.models
-          ?.filter((m) =>
-            m.supportedGenerationMethods?.includes("generateContent"),
-          )
-          .map((m) => m.name),
-        providerStatus: r.status,
-      });
+    return res.status(r.status).json({
+      models: d.models
+        ?.filter((m) =>
+          m.supportedGenerationMethods?.includes("generateContent"),
+        )
+        .map((m) => m.name),
+      providerStatus: r.status,
+    });
   } catch {
     return res.status(502).json({ error: "Provider unavailable" });
   }
