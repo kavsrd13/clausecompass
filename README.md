@@ -17,3 +17,16 @@ Stored example output is explicitly labeled. Live errors are never replaced with
 
 ## Challenge
 Keep only main, public repository below 10 MB. Do not commit node_modules, dist, secrets or videos. No challenge submissions are automated.
+
+## Code quality and architecture
+
+Run `npm run verify` for formatting, ESLint, scoped strict TypeScript checkJs, 30 tests and a production build. CI enforces these checks and a dependency audit. See docs/CODE_QUALITY.md for findings, fixes and remaining limitations.
+
+- index.html: semantic static workspace markup.
+- main.js: browser event orchestration and workspace state.
+- lib/client/: isolated rendering, lazy PDF extraction and brief export.
+- lib/contracts.js and lib/limits.js: shared schemas and limits.
+- lib/server/: shared HTTP/auth policies and the Gemini provider adapter.
+- api/: thin Vercel endpoints; analysis uses injected configuration/transport in tests.
+
+The original seven-test record in docs/VERIFICATION.md is historical; the quality refactor expands the deterministic suite to thirty. Live quality is tested separately with scripts/live.mjs.

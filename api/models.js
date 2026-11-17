@@ -1,31 +1,32 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-const hash = (s) => createHash("sha256").update(s).digest();
+import { allowRequest, isAuthorized } from "../lib/server/http.js";
+/** @param {import('../lib/server/http.js').ApiRequest} req @param {import('../lib/server/http.js').ApiResponse} res */
 export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store");
-  if (
-    !process.env.APP_ACCESS_TOKEN ||
-    !timingSafeEqual(
-      hash(String(req.headers.authorization || "")),
-      hash(`Bearer ${process.env.APP_ACCESS_TOKEN}`),
-    )
-  )
+  if (!allowRequest(req, res, "GET")) return;
+  if (!isAuthorized(req, process.env.APP_ACCESS_TOKEN))
     return res.status(401).json({ error: "Access required" });
+  if (!process.env.GEMINI_API_KEY)
+    return res.status(503).json({ error: "Live AI is not configured." });
   try {
-    const r = await fetch(
+    const response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models",
       {
         headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
         signal: AbortSignal.timeout(15000),
       },
     );
-    const d = await r.json();
-    return res.status(r.status).json({
-      models: d.models
-        ?.filter((m) =>
+    if (!response.ok)
+      return res.status(502).json({
+        error: "Model discovery unavailable",
+        providerStatus: response.status,
+      });
+    const data = await response.json();
+    return res.status(200).json({
+      models: data.models
+        ?.filter((/** @type {{supportedGenerationMethods?:string[]}} */ m) =>
           m.supportedGenerationMethods?.includes("generateContent"),
         )
-        .map((m) => m.name),
-      providerStatus: r.status,
+        .map((/** @type {{name:string}} */ m) => m.name),
+      providerStatus: response.status,
     });
   } catch {
     return res.status(502).json({ error: "Provider unavailable" });

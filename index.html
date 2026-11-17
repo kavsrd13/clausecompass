@@ -11,7 +11,115 @@
   </head>
   <body>
     <a class="skip" href="#workspace">Skip to workspace</a>
-    <div id="app"></div>
+    <header>
+      <a class="brand" href="/">◈ ClauseCompass</a
+      ><span class="pill">LEGAL INFORMATION, MADE CLEAR</span>
+    </header>
+    <main id="workspace">
+      <section class="intro">
+        <span class="eyebrow">A CLEARER WAY FORWARD</span>
+        <h1>Understand before<br />you <em>sign.</em></h1>
+        <p>
+          Find the commitments. See what changed. Arrive at your next
+          conversation prepared.
+        </p>
+        <div class="steps">
+          <span>01 Understand</span><span>02 Compare</span
+          ><span>03 Prepare</span>
+        </div>
+      </section>
+      <div class="workspace">
+        <section class="card">
+          <div class="section-head">
+            <h2>Your documents</h2>
+            <button id="example" class="secondary">
+              Try fictional example
+            </button>
+          </div>
+          <p class="muted">
+            PDF text is extracted in your browser. Live analysis sends extracted
+            text to Gemini. Use fictional or non-confidential information.
+          </p>
+          <label for="role">I am reviewing as</label
+          ><select id="role">
+            <option>Neutral reviewer</option>
+            <option>Service provider</option>
+            <option>Client</option>
+            <option>Tenant</option>
+            <option>Employee</option></select
+          ><label for="file"
+            >Add a text PDF or TXT · up to 5 MB / 20 pages</label
+          ><input id="file" type="file" accept=".pdf,.txt" /><label
+            for="original"
+            >Original document / extracted text</label
+          ><textarea
+            id="original"
+            placeholder="Paste your agreement here…"
+            rows="10"
+            maxlength="80000"
+          ></textarea>
+          <details>
+            <summary>Add a revised version to compare</summary>
+            <label for="revised">Revised document text</label
+            ><textarea
+              id="revised"
+              rows="7"
+              maxlength="80000"
+              placeholder="Paste revised wording…"
+            ></textarea>
+          </details>
+          <details>
+            <summary>Live access settings</summary>
+            <label for="token">Deployment access token (kept in memory)</label
+            ><input id="token" type="password" autocomplete="off" />
+            <p class="muted">
+              The Gemini credential stays on the server. Ask the deployment
+              owner for access.
+            </p>
+          </details>
+          <div class="actions">
+            <button id="analyze">Understand document ↗</button
+            ><button id="clear" class="secondary">Clear workspace</button>
+          </div>
+        </section>
+        <section class="card results" aria-busy="false">
+          <div class="section-head">
+            <h2>Your review</h2>
+            <span id="badge" class="pill">READY WHEN YOU ARE</span>
+          </div>
+          <p id="status" role="status">
+            Start with a document or explore the fictional example.
+          </p>
+          <div id="output">
+            <div class="empty">
+              ◈
+              <h3>Clarity starts here</h3>
+              <p>
+                Your overview, source passages and preparation questions will
+                appear here.
+              </p>
+            </div>
+          </div>
+          <label for="question">Ask about these documents</label
+          ><input
+            id="question"
+            maxlength="1000"
+            placeholder="What happens if payment is late?"
+          />
+          <div class="actions">
+            <button id="ask" class="secondary">Ask a question</button
+            ><button id="export" class="secondary" disabled>
+              Export brief ↓</button
+            ><button id="print" class="secondary">Print</button>
+          </div>
+        </section>
+      </div>
+      <footer>
+        Information and preparation assistance, not professional legal advice.
+        Interpretations can be incomplete. Source quotes establish provenance,
+        not legal correctness.
+      </footer>
+    </main>
     <script type="module" src="/main.js"></script>
   </body>
 </html>
