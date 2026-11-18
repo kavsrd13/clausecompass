@@ -1,42 +1,116 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requestSchema, resultSchema, verify } from "../lib/contracts.js";
-test("reject short and oversized requests", () => {
-  assert.equal(
-    requestSchema.safeParse({ text: "bad", role: "Client" }).success,
-    false,
+import { requestSchema, planSchema } from "../lib/contracts.js";
+import {
+  category,
+  eligibleActions,
+  buildPlan,
+  demoSnapshot,
+} from "../lib/air.js";
+import { profile } from "./fixtures.js";
+for (const [aqi, name] of [
+  [0, "Good"],
+  [50, "Good"],
+  [51, "Moderate"],
+  [100, "Moderate"],
+  [101, "Unhealthy for sensitive groups"],
+  [150, "Unhealthy for sensitive groups"],
+  [151, "Unhealthy"],
+  [200, "Unhealthy"],
+  [201, "Very unhealthy"],
+  [300, "Very unhealthy"],
+  [301, "Hazardous"],
+])
+  test(`US AQI boundary ${aqi}`, () => assert.equal(category(aqi), name));
+test("reject non-finite and negative AQI", () => {
+  for (const n of [-1, NaN, Infinity]) assert.throws(() => category(n));
+});
+test("reject invalid household and location inputs", () => {
+  for (const changes of [
+    { latitude: 91 },
+    { longitude: 181 },
+    { distanceKm: -1 },
+    { days: 8 },
+    { goal: "x".repeat(501) },
+    { city: " " },
+    { commute: "jet" },
+    { distanceKm: NaN },
+  ])
+    assert.equal(
+      requestSchema.safeParse({ ...profile, ...changes }).success,
+      false,
+    );
+});
+test("mandatory safety actions cannot be removed by AI", () => {
+  const p = buildPlan(
+    profile,
+    demoSnapshot(),
+    ["community", "transit", "made-up"],
+    true,
   );
+  assert.equal(p.actions[0].id, "reduce-exposure");
+  assert.equal(p.actions[1].id, "clean-room");
+  assert.ok(!p.actions.some((a) => a.id === "made-up"));
+  assert.equal(new Set(p.actions.map((a) => a.id)).size, p.actions.length);
+  assert.ok(planSchema.safeParse(p).success);
+});
+test("sensitive households trigger precautions earlier", () => {
+  assert.ok(eligibleActions(profile, 110)[0].mandatory);
   assert.equal(
-    requestSchema.safeParse({ text: "a".repeat(80001), role: "Client" })
-      .success,
+    eligibleActions({ ...profile, sensitive: false }, 110)[0].mandatory,
     false,
   );
 });
-test("source verification uses correct version and exact quote", () => {
-  const result = {
-    summary: "x",
-    questions: [],
-    findings: [
-      { quote: "30 days", document: "original" },
-      { quote: "60 days", document: "original" },
-      { quote: "60 days", document: "revised" },
-    ],
-  };
-  assert.equal(
-    verify(result, { text: "Pay in 30 days", second: "Pay in 60 days" })
-      .findings.length,
-    2,
+test("good-air routine does not unconditionally move activity indoors", () => {
+  const a = eligibleActions(profile, 40)[0];
+  assert.equal(a.mandatory, false);
+  assert.match(a.action, /before outdoor/);
+});
+test("carbon and health percentages are never fabricated", () => {
+  const plan = buildPlan(profile, demoSnapshot());
+  assert.equal(plan.avoidedKm, 80);
+  for (const mode of ["public", "active", "home"])
+    assert.equal(
+      buildPlan({ ...profile, commute: mode }, demoSnapshot()).avoidedKm,
+      0,
+    );
+  assert.ok(!JSON.stringify(plan.actions).includes("%"));
+});
+test("active commute on heavy smog does not promote strenuous cycling", () => {
+  const a = eligibleActions({ ...profile, commute: "active" }, 240).find(
+    (a) => a.id === "active-travel",
+  );
+  assert.ok(a.mandatory);
+  assert.match(a.action, /avoids prolonged exertion/);
+});
+test("gas and solid-fuel profiles receive combustion caveats", () => {
+  for (const cooking of ["gas", "solid"])
+    assert.ok(
+      eligibleActions({ ...profile, cooking }, 230).some(
+        (a) => a.id === "cooking",
+      ),
+    );
+  assert.ok(
+    !eligibleActions({ ...profile, cooking: "electric" }, 230).some(
+      (a) => a.id === "cooking",
+    ),
   );
 });
-test("empty citations cannot pass result schema", () => {
-  assert.equal(
-    resultSchema.safeParse({
-      summary: "x",
-      questions: [],
-      findings: [
-        { title: "x", explanation: "x", quote: "", document: "original" },
-      ],
-    }).success,
-    false,
+
+test("budget changes eligible purchase options", () => {
+  assert.ok(
+    !eligibleActions({ ...profile, budget: "free" }, 230).some(
+      (a) => a.id === "filter-option",
+    ),
+  );
+  assert.ok(
+    eligibleActions({ ...profile, budget: "some", purifier: false }, 230).some(
+      (a) => a.id === "filter-option",
+    ),
+  );
+  assert.ok(
+    !eligibleActions({ ...profile, budget: "some", purifier: true }, 230).some(
+      (a) => a.id === "filter-option",
+    ),
   );
 });

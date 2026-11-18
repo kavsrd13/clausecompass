@@ -5,119 +5,178 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Understand legal documents, compare revisions and prepare questions with source-backed explanations."
+      content="A family smog-day planner with modelled air quality, evidence-based indoor actions and lower-emission routines."
     />
-    <title>ClauseCompass | Understand before you sign</title>
+    <title>AirWise | A clearer plan for polluted days</title>
   </head>
   <body>
-    <a class="skip" href="#workspace">Skip to workspace</a>
+    <a class="skip" href="#workspace">Skip to planner</a>
     <header>
-      <a class="brand" href="/">◈ ClauseCompass</a
-      ><span class="pill">LEGAL INFORMATION, MADE CLEAR</span>
+      <a class="brand" href="/">◌ AirWise</a
+      ><span class="pill">CHALLENGE 6 · URBAN AIR QUALITY</span>
     </header>
     <main id="workspace">
       <section class="intro">
-        <span class="eyebrow">A CLEARER WAY FORWARD</span>
-        <h1>Understand before<br />you <em>sign.</em></h1>
+        <span class="eyebrow">SMALL CHOICES. A BETTER BREATHING DAY.</span>
+        <h1>Plan your day.<br /><em>Care for your air.</em></h1>
         <p>
-          Find the commitments. See what changed. Arrive at your next
-          conversation prepared.
+          A practical smog-day companion for your family and neighbourhood.
+          Understand the air, reduce exposure and choose lower-emission
+          routines.
         </p>
         <div class="steps">
-          <span>01 Understand</span><span>02 Compare</span
-          ><span>03 Prepare</span>
+          <span>01 Know your air</span><span>02 Adapt your routine</span
+          ><span>03 Act together</span>
         </div>
       </section>
       <div class="workspace">
         <section class="card">
           <div class="section-head">
-            <h2>Your documents</h2>
-            <button id="example" class="secondary">
-              Try fictional example
+            <h2>Your family's day</h2>
+            <button id="demo" type="button" class="secondary">
+              Try winter-smog demo
             </button>
           </div>
-          <p class="muted">
-            PDF text is extracted in your browser. Live analysis sends extracted
-            text to Gemini. Use fictional or non-confidential information.
-          </p>
-          <label for="role">I am reviewing as</label
-          ><select id="role">
-            <option>Neutral reviewer</option>
-            <option>Service provider</option>
-            <option>Client</option>
-            <option>Tenant</option>
-            <option>Employee</option></select
-          ><label for="file"
-            >Add a text PDF or TXT · up to 5 MB / 20 pages</label
-          ><input id="file" type="file" accept=".pdf,.txt" /><label
-            for="original"
-            >Original document / extracted text</label
-          ><textarea
-            id="original"
-            placeholder="Paste your agreement here…"
-            rows="10"
-            maxlength="80000"
-          ></textarea>
-          <details>
-            <summary>Add a revised version to compare</summary>
-            <label for="revised">Revised document text</label
-            ><textarea
-              id="revised"
-              rows="7"
-              maxlength="80000"
-              placeholder="Paste revised wording…"
-            ></textarea>
-          </details>
-          <details>
-            <summary>Live access settings</summary>
-            <label for="token">Deployment access token (kept in memory)</label
-            ><input id="token" type="password" autocomplete="off" />
+          <form id="profile">
+            <label for="city-search">Find your city</label>
+            <div class="actions">
+              <input
+                id="city-search"
+                maxlength="80"
+                placeholder="Search a city, not your address"
+              /><button id="search" type="button" class="secondary">
+                Search
+              </button>
+            </div>
+            <label for="city">Choose a city</label
+            ><select id="city"></select>
             <p class="muted">
-              The Gemini credential stays on the server. Ask the deployment
-              owner for access.
+              Only city coordinates are used. No precise location permission or
+              account required.
             </p>
-          </details>
-          <div class="actions">
-            <button id="analyze">Understand document ↗</button
-            ><button id="clear" class="secondary">Clear workspace</button>
-          </div>
+            <label class="check"
+              ><input id="sensitive" type="checkbox" /> Household includes
+              children, older adults or someone more sensitive to
+              pollution</label
+            ><label for="commute">Usual travel</label
+            ><select id="commute">
+              <option value="car">Solo car</option>
+              <option value="public">Public transport / shared journey</option>
+              <option value="active">Walking / cycling</option>
+              <option value="home">Mostly at home</option>
+            </select>
+            <div class="fields">
+              <div>
+                <label for="distance">One-way journey (km)</label
+                ><input
+                  id="distance"
+                  type="number"
+                  min="0"
+                  max="200"
+                  step="0.1"
+                  value="8"
+                  required
+                />
+              </div>
+              <div>
+                <label for="days">Travel days per week</label
+                ><input
+                  id="days"
+                  type="number"
+                  min="1"
+                  max="7"
+                  value="5"
+                  required
+                />
+              </div>
+            </div>
+            <label for="budget">Available budget</label
+            ><select id="budget">
+              <option value="free">Focus on no-cost changes</option>
+              <option value="some">Some budget for improvements</option></select
+            ><label class="check"
+              ><input id="purifier" type="checkbox" /> We already have a
+              particle-filtering air cleaner</label
+            ><label for="cooking">Main cooking method</label
+            ><select id="cooking">
+              <option value="electric">Electric</option>
+              <option value="gas">Gas</option>
+              <option value="solid">Solid fuel / biomass</option></select
+            ><label for="goal"
+              >What should your plan prioritize? (optional)</label
+            ><textarea
+              id="goal"
+              maxlength="500"
+              rows="3"
+              placeholder="For example: school pickup, a no-cost routine, or essential outdoor work. Avoid personal medical details."
+            ></textarea>
+            <details>
+              <summary>AI personalization access</summary>
+              <label for="token">App access token</label
+              ><input id="token" type="password" autocomplete="off" />
+              <p class="muted">
+                Your Gemini key belongs on the server, never in this box. Your
+                city and selected household preferences are sent for AI
+                prioritization only when you request it.
+              </p>
+            </details>
+            <div class="actions">
+              <button id="guidance" type="submit">
+                Check air & build a plan ↗</button
+              ><button id="ai" type="button" class="secondary">
+                Personalize with Gemini</button
+              ><button id="clear" type="button" class="secondary">Clear</button>
+            </div>
+          </form>
         </section>
         <section class="card results" aria-busy="false">
           <div class="section-head">
-            <h2>Your review</h2>
+            <h2>Your smog-day plan</h2>
             <span id="badge" class="pill">READY WHEN YOU ARE</span>
           </div>
-          <p id="status" role="status">
-            Start with a document or explore the fictional example.
+          <p id="status" role="status" aria-live="polite">
+            Try a fictional demo or check modelled air for your city.
           </p>
           <div id="output">
             <div class="empty">
-              ◈
-              <h3>Clarity starts here</h3>
+              ◌
+              <h3>A few thoughtful changes</h3>
               <p>
-                Your overview, source passages and preparation questions will
+                Your air snapshot, tailored actions and impact explanation
                 appear here.
               </p>
             </div>
           </div>
-          <label for="question">Ask about these documents</label
-          ><input
-            id="question"
-            maxlength="1000"
-            placeholder="What happens if payment is late?"
-          />
           <div class="actions">
-            <button id="ask" class="secondary">Ask a question</button
-            ><button id="export" class="secondary" disabled>
-              Export brief ↓</button
+            <button id="export" class="secondary" disabled>
+              Download family plan ↓</button
             ><button id="print" class="secondary">Print</button>
           </div>
         </section>
       </div>
+      <section class="card about">
+        <h2>Honest about impact</h2>
+        <p>
+          Less exposure and fewer emissions are different goals. We explain
+          both. We never promise that a single action lowers city AQI or
+          guarantees a health benefit.
+        </p>
+        <p>
+          Air data:
+          <a href="https://open-meteo.com/en/docs/air-quality-api"
+            >Open-Meteo</a
+          >
+          and <a href="https://atmosphere.copernicus.eu/">CAMS</a> model
+          forecasts, not a local sensor. Index:
+          <a href="https://www.airnow.gov/aqi/aqi-basics/">US AQI</a>, not India
+          AQI. Check your local official advisories.
+        </p>
+      </section>
       <footer>
-        Information and preparation assistance, not professional legal advice.
-        Interpretations can be incomplete. Source quotes establish provenance,
-        not legal correctness.
+        General prevention information, not medical advice. No forecasts
+        guarantee safety. For severe symptoms, seek urgent medical help. No
+        household profile is saved. Demo data is fictional. Guidance reviewed 18
+        November 2026.
       </footer>
     </main>
     <script type="module" src="/main.js"></script>

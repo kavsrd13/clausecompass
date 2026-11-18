@@ -1,9 +1,2 @@
-# Access to live analysis
-
-The production app is https://clausecompass-self.vercel.app.
-
-A random deployment access token is stored in the ignored local .env.local file and in Vercel's sensitive APP_ACCESS_TOKEN variable. Enter its value in Live access settings. Do not share it publicly. The Gemini key is stored only in Vercel. Never enter a Gemini key into the app's access-token box.
-
-The supplied Gemini key appeared in chat. Rotate it through Google AI Studio and update the Vercel production secret afterward, then redeploy. No key was committed to Git.
-
-To run the opt-in live tests: node --env-file=.env.local scripts/live.mjs. This sends fictional documents to Gemini and can incur API usage.
+# Access and deployment
+The earlier Vercel project was deleted at the user's request. It has not been recreated. Existing ignored local app-access configuration may remain but does not mean a live deployment exists. For local API testing use `npm run dev`; configure GEMINI_API_KEY and APP_ACCESS_TOKEN in ignored environment variables. Never paste a Gemini key into the app. Rotate the previously chat-shared key before reuse. No secret is committed. A new deployment needs explicit user instruction and project linking.

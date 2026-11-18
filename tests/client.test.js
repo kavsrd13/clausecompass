@@ -1,114 +1,44 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
+import { readFileSync } from "node:fs";
 import { renderReview } from "../lib/client/review.js";
 import { createBrief } from "../lib/client/export.js";
-import { extractDocument } from "../lib/client/documents.js";
-import { LIMITS } from "../lib/limits.js";
-const review = {
-  summary: "<img src=x onerror=alert(1)>",
-  findings: [
-    {
-      title: "<script>bad()</script>",
-      explanation: "Pay after approval.",
-      quote: "Payment in 30 days",
-      document: "original",
-    },
-  ],
-  questions: ["When is approval?"],
-};
-test("renderer uses text nodes for untrusted model content", () => {
-  const dom = new JSDOM(
-    '<div id="badge"></div><div id="output"></div><button id="export" disabled></button><p id="status"></p>',
+import { buildPlan, demoSnapshot } from "../lib/air.js";
+import { profile } from "./fixtures.js";
+test("untrusted city text is escaped and modelled data labelled", () => {
+  const dom = new JSDOM('<div id="output"></div>');
+  const plan = buildPlan(
+    { ...profile, city: "<img src=x onerror=alert(1)>" },
+    demoSnapshot(),
   );
-  renderReview(dom.window.document, review, "LIVE");
+  renderReview(dom.window.document, plan);
   assert.equal(dom.window.document.querySelectorAll("img,script").length, 0);
+  assert.match(dom.window.document.body.textContent, /Fictional/);
+  assert.match(dom.window.document.body.textContent, /US AQI/);
   assert.ok(
-    dom.window.document
-      .getElementById("output")
-      .textContent.includes(review.summary),
+    dom.window.document.querySelectorAll('th[scope="col"]').length === 3,
   );
-  assert.equal(dom.window.document.getElementById("export").disabled, false);
   dom.window.close();
 });
-test("export preserves partial status, sources and questions", () => {
-  const brief = createBrief({ ...review, incomplete: true }, "LIVE");
-  assert.match(brief, /Incomplete/);
-  assert.ok(brief.includes(review.findings[0].quote));
-  assert.ok(brief.includes(review.questions[0]));
+test("export carries provenance, scope and travel assumptions", () => {
+  const brief = createBrief(buildPlan(profile, demoSnapshot()));
+  for (const expected of [
+    "demo",
+    "US AQI",
+    "not a carbon",
+    "not medical advice",
+    "https://",
+  ])
+    assert.ok(brief.includes(expected));
 });
-test("TXT length limit applies before replacing current document", async () => {
-  await assert.rejects(
-    extractDocument({
-      name: "a.txt",
-      size: 100,
-      text: async () => "a".repeat(LIMITS.documentCharacters + 1),
-    }),
-    /too long/,
-  );
-});
-test("file extension and signature validation do not start parser", async () => {
-  await assert.rejects(
-    extractDocument({ name: "a.exe", size: 1 }),
-    /PDF or TXT/,
-  );
-  await assert.rejects(
-    extractDocument({
-      name: "a.pdf",
-      size: 4,
-      arrayBuffer: async () => new TextEncoder().encode("fake").buffer,
-    }),
-    /not a PDF/,
-  );
-});
-const pdfFile = {
-  name: "a.pdf",
-  size: 100,
-  arrayBuffer: async () => new TextEncoder().encode("%PDF-").buffer,
-};
-function fakeParser(doc) {
-  let destroyed = 0;
-  return {
-    load: async () => ({
-      getDocument: () => ({
-        promise: Promise.resolve(doc),
-        destroy: async () => {
-          destroyed++;
-        },
-      }),
-    }),
-    destroyed: () => destroyed,
-  };
-}
-test("too many PDF pages releases worker", async () => {
-  const fake = fakeParser({ numPages: 21 });
-  await assert.rejects(extractDocument(pdfFile, fake.load), /20 pages/);
-  assert.equal(fake.destroyed(), 1);
-});
-test("image-only page releases worker", async () => {
-  const fake = fakeParser({
-    numPages: 1,
-    getPage: async () => ({
-      getTextContent: async () => ({ items: [{ str: "" }] }),
-    }),
-  });
-  await assert.rejects(
-    extractDocument(pdfFile, fake.load),
-    /insufficient text/,
-  );
-  assert.equal(fake.destroyed(), 1);
-});
-test("valid PDF preserves page references and releases worker", async () => {
-  const fake = fakeParser({
-    numPages: 1,
-    getPage: async () => ({
-      getTextContent: async () => ({
-        items: [{ str: "Payment is due after invoice approval." }],
-      }),
-    }),
-  });
-  const text = await extractDocument(pdfFile, fake.load);
-  assert.match(text, /\[Page 1\]/);
-  assert.match(text, /invoice approval/);
-  assert.equal(fake.destroyed(), 1);
+test("all labelled form controls exist and IDs are unique", () => {
+  const dom = new JSDOM(readFileSync("index.html", "utf8"));
+  const document = dom.window.document;
+  for (const label of document.querySelectorAll("label[for]"))
+    assert.ok(document.getElementById(label.htmlFor));
+  const ids = [...document.querySelectorAll("[id]")].map((e) => e.id);
+  assert.equal(ids.length, new Set(ids).size);
+  assert.equal(document.documentElement.lang, "en");
+  dom.window.close();
 });

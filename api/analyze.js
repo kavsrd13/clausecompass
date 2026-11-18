@@ -1,9 +1,11 @@
-import { requestSchema, verify } from "../lib/contracts.js";
+import { requestSchema } from "../lib/contracts.js";
+import { buildPlan, eligibleActions } from "../lib/air.js";
+import { fetchAir } from "../lib/server/air.js";
 import { allowRequest, isAuthorized } from "../lib/server/http.js";
-import { analyzeDocument, ProviderError } from "../lib/server/gemini.js";
-/** @param {{config?:()=>import('../lib/server/gemini.js').ServerConfig,fetcher?:typeof fetch}} options */
+import { prioritize, ProviderError } from "../lib/server/gemini.js";
+/** @param {{config?:()=>import('../lib/server/gemini.js').ServerConfig,fetcher?:typeof fetch,now?:()=>number}} options */
 export function createAnalyzeHandler(options = {}) {
-  const getConfig =
+  const config =
     options.config ||
     (() => ({
       apiKey: process.env.GEMINI_API_KEY,
@@ -11,43 +13,59 @@ export function createAnalyzeHandler(options = {}) {
       model: process.env.GEMINI_MODEL,
     }));
   /** @param {import('../lib/server/http.js').ApiRequest} req @param {import('../lib/server/http.js').ApiResponse} res */
-  return async function handler(req, res) {
+  return async (req, res) => {
     if (!allowRequest(req, res, "POST")) return;
-    const config = getConfig();
-    if (!config.apiKey)
-      return res.status(503).json({
-        error: "Live AI is not configured. Try the fictional example.",
-      });
-    if (!isAuthorized(req, config.accessToken))
-      return res.status(401).json({
-        error: "Enter the deployment access token in Live access settings.",
-      });
-    const validated = requestSchema.safeParse(req.body);
-    if (!validated.success)
+    const parsed = requestSchema.safeParse(req.body);
+    if (!parsed.success)
       return res.status(400).json({
         error:
-          "Provide 30–80,000 characters of original text, a supported role, and a question of at most 1,000 characters.",
+          "Check the city, coordinates, household choices and journey limits.",
       });
+    const settings = config();
+    if (!settings.apiKey)
+      return res.status(503).json({
+        error: "Gemini is not configured. Use the guidance-only planner.",
+      });
+    if (!isAuthorized(req, settings.accessToken))
+      return res
+        .status(401)
+        .json({ error: "Enter the app access token for AI personalization." });
     try {
-      const result = await analyzeDocument(
-        validated.data,
-        config,
+      const snapshot = await fetchAir(
+        parsed.data,
+        options.fetcher || fetch,
+        options.now?.() ?? Date.now(),
+      );
+      const ai = await prioritize(
+        {
+          profile: parsed.data,
+          air: snapshot.current,
+          eligible: eligibleActions(parsed.data, snapshot.current.aqi),
+        },
+        settings,
         options.fetcher || fetch,
       );
-      const checked = verify(result, validated.data);
-      return res.status(200).json({
-        ...checked,
-        incomplete: checked.findings.length !== result.findings.length,
-      });
-    } catch (error) {
+      if (
+        ai.priorities.some(
+          (id) =>
+            !eligibleActions(parsed.data, snapshot.current.aqi).some(
+              (a) => a.id === id,
+            ),
+        )
+      )
+        throw new ProviderError(
+          "AI selected unsupported guidance. Use the guidance-only planner.",
+        );
       return res
-        .status(error instanceof ProviderError ? error.status : 502)
-        .json({
-          error:
-            error instanceof ProviderError
-              ? error.message
-              : "Analysis could not be validated or timed out. Your text remains available; retry or use a smaller section.",
-        });
+        .status(200)
+        .json(buildPlan(parsed.data, snapshot, ai.priorities, true));
+    } catch (e) {
+      return res.status(e instanceof ProviderError ? e.status : 502).json({
+        error:
+          e instanceof ProviderError
+            ? e.message
+            : "Fresh air-quality data could not be validated. Retry later; no live readings were invented.",
+      });
     }
   };
 }

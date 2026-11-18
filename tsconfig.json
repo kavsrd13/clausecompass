@@ -15,6 +15,7 @@
     "lib/contracts.js",
     "lib/limits.js",
     "lib/server/**/*.js",
-    "lib/client/export.js"
+    "lib/client/export.js",
+    "lib/air.js"
   ]
 }

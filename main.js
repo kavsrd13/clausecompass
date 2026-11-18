@@ -1,151 +1,178 @@
 import "./style.css";
+import { requestSchema, planSchema, snapshotSchema } from "./lib/contracts.js";
+import { buildPlan, demoSnapshot } from "./lib/air.js";
 import { renderReview } from "./lib/client/review.js";
-import { extractDocument } from "./lib/client/documents.js";
 import { createBrief } from "./lib/client/export.js";
-import { requestSchema, resultSchema } from "./lib/contracts.js";
-const example =
-  "FREELANCE SERVICES AGREEMENT\n\n1. Payment: The Client shall pay the Service Provider within 30 days after approval of an invoice.\n\n2. Ownership: Intellectual property transfers to the Client only after full payment.\n\n3. Termination: Either party may terminate on 14 days written notice.\n\n4. Liability: The Service Provider liability is capped at the total fees paid under this agreement.\n\n5. Confidentiality: Both parties must keep non-public business information confidential for two years.";
-let result = null;
-let mode = "";
-let busy = false;
 const $ = (id) => document.getElementById(id);
-const status = (t) => ($("status").textContent = t);
-function show(data, label) {
-  result = data;
-  mode = label;
-  renderReview(document, data, label);
-}
-$("example").onclick = () => {
-  $("original").value = example;
-  $("revised").value = example
-    .replace("30 days", "60 days")
-    .replace(
-      "is capped at the total fees paid under this agreement",
-      "is unlimited",
-    );
-  show(
-    {
-      summary:
-        "This fictional service agreement covers payment, ownership, termination and confidentiality. The revision extends payment from 30 to 60 days and changes the stated liability cap. These stored example findings demonstrate the interface; they are not a live AI result.",
-      findings: [
-        {
-          title: "A longer wait for payment",
-          explanation:
-            "The revised wording gives the Client 60 days after invoice approval. The approval condition remains important.",
-          quote:
-            "The Client shall pay the Service Provider within 60 days after approval of an invoice.",
-          document: "revised",
-        },
-        {
-          title: "Liability wording changes",
-          explanation:
-            "The original stated cap is replaced with unlimited liability. Discuss the scope and implications with a legal professional.",
-          quote: "The Service Provider liability is unlimited.",
-          document: "revised",
-        },
-      ],
-      questions: [
-        "How and when is invoice approval confirmed?",
-        "What liability limit should the parties discuss?",
-        "What payment is due if the agreement ends early?",
-      ],
-    },
-    "STORED FICTIONAL EXAMPLE",
+let locations = [
+  { name: "New Delhi, India", latitude: 28.61, longitude: 77.21 },
+  { name: "Mumbai, India", latitude: 19.08, longitude: 72.88 },
+  { name: "Lahore, Pakistan", latitude: 31.55, longitude: 74.34 },
+  { name: "London, United Kingdom", latitude: 51.51, longitude: -0.13 },
+  { name: "New York, United States", latitude: 40.71, longitude: -74.01 },
+  { name: "Beijing, China", latitude: 39.9, longitude: 116.4 },
+];
+let result = null;
+let revision = 0;
+let controller;
+const status = (text) => ($("status").textContent = text);
+function populate() {
+  $("city").replaceChildren(
+    ...locations.map((city, i) => {
+      const option = document.createElement("option");
+      option.value = String(i);
+      option.textContent = city.name;
+      return option;
+    }),
   );
+}
+function read() {
+  const city = locations[Number($("city").value)];
+  return requestSchema.parse({
+    city: city.name,
+    latitude: city.latitude,
+    longitude: city.longitude,
+    sensitive: $("sensitive").checked,
+    commute: $("commute").value,
+    distanceKm: Number($("distance").value),
+    days: Number($("days").value),
+    budget: $("budget").value,
+    purifier: $("purifier").checked,
+    cooking: $("cooking").value,
+    goal: $("goal").value,
+  });
+}
+function invalidate() {
+  revision++;
+  controller?.abort();
+  result = null;
+  $("export").disabled = true;
+  $("badge").textContent = "PROFILE CHANGED";
+  $("output").replaceChildren();
+  status("Profile changed. Build a new plan.");
+}
+function show(plan) {
+  result = plan;
+  renderReview(document, plan);
+  $("export").disabled = false;
+  $("badge").textContent =
+    plan.snapshot.kind === "demo"
+      ? "FICTIONAL DEMO"
+      : plan.ai
+        ? "LIVE DATA · GEMINI"
+        : "LIVE DATA · GUIDANCE";
+  status(
+    plan.snapshot.kind === "demo"
+      ? "Fictional winter-smog example. These are not current readings."
+      : "Plan ready. Check local official advisories before acting.",
+  );
+}
+async function post(path, body, signal, token = "") {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.error || "Service unavailable");
+  return data;
+}
+async function run(ai = false) {
+  if (!$("profile").reportValidity()) return;
+  const generation = ++revision;
+  controller?.abort();
+  controller = new AbortController();
+  const activeController = controller;
+  const signal = AbortSignal.any([
+    controller.signal,
+    AbortSignal.timeout(45000),
+  ]);
+  $("guidance").disabled = true;
+  $("ai").disabled = true;
+  document.querySelector(".results").setAttribute("aria-busy", "true");
+  status(
+    ai
+      ? "Checking modelled air and personalizing priorities…"
+      : "Checking modelled outdoor air…",
+  );
+  try {
+    const profile = read();
+    const plan = ai
+      ? planSchema.parse(
+          await post("/api/analyze", profile, signal, $("token").value),
+        )
+      : planSchema.parse(
+          buildPlan(
+            profile,
+            snapshotSchema.parse(await post("/api/air", profile, signal)),
+          ),
+        );
+    if (generation === revision) show(plan);
+  } catch (e) {
+    if (generation === revision)
+      status(e.name === "AbortError" ? "Request cancelled." : e.message);
+  } finally {
+    if (controller === activeController) {
+      controller = null;
+      $("guidance").disabled = false;
+      $("ai").disabled = false;
+      document.querySelector(".results").setAttribute("aria-busy", "false");
+    }
+  }
+}
+$("profile").onsubmit = (e) => {
+  e.preventDefault();
+  run();
 };
-async function run(question = "") {
-  if (busy) return;
-  const snapshot = JSON.stringify({
-    text: $("original").value,
-    second: $("revised").value,
-    role: $("role").value,
-  });
-  const checked = requestSchema.safeParse({
-    ...JSON.parse(snapshot),
-    question,
-  });
-  if (!checked.success) {
-    status(
-      "Add at least 30 characters of document text and check the input limits.",
-    );
+$("ai").onclick = () => run(true);
+$("demo").onclick = () => {
+  if (!$("profile").reportValidity()) return;
+  invalidate();
+  show(planSchema.parse(buildPlan(read(), demoSnapshot())));
+};
+$("profile").addEventListener("input", (e) => {
+  if (e.target.id !== "token" && e.target.id !== "city-search") invalidate();
+});
+$("search").onclick = async () => {
+  const query = $("city-search").value.trim();
+  if (query.length < 2) {
+    status("Enter at least two letters for city search.");
     return;
   }
-  busy = true;
-  $("analyze").disabled = true;
-  $("ask").disabled = true;
-  $("question").disabled = true;
-  status("Analyzing and checking source references…");
-  document.querySelector(".results").setAttribute("aria-busy", "true");
+  $("search").disabled = true;
   try {
-    const r = await fetch("/api/analyze", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${$("token").value}`,
-      },
-      body: JSON.stringify(checked.data),
-      signal: AbortSignal.timeout(60_000),
-    });
-    const data = await r.json();
-    if (!r.ok) throw Error(data.error || "Request failed");
-    if (
-      snapshot !==
-      JSON.stringify({
-        text: $("original").value,
-        second: $("revised").value,
-        role: $("role").value,
-      })
-    ) {
-      status("Input changed during analysis. Run a new review.");
-      return;
-    }
-    const validated = resultSchema.parse(data);
-    show({ ...validated, incomplete: data.incomplete === true }, "LIVE GEMINI");
+    const data = await post(
+      "/api/locations",
+      { query },
+      AbortSignal.timeout(12000),
+    );
+    if (!data.locations.length)
+      throw Error("No matching city found. Try another name.");
+    locations = data.locations;
+    populate();
+    invalidate();
+    status("Select the correct city and build your plan.");
   } catch (e) {
     status(e.message);
   } finally {
-    busy = false;
-    $("analyze").disabled = false;
-    $("ask").disabled = false;
-    $("question").disabled = false;
-    document.querySelector(".results").setAttribute("aria-busy", "false");
-  }
-}
-$("analyze").onclick = () => run();
-$("ask").onclick = () => {
-  if ($("question").value.trim()) run($("question").value);
-  else status("Enter a question first.");
-};
-$("file").onchange = async (e) => {
-  result = null;
-  $("export").disabled = true;
-  $("output").replaceChildren();
-  try {
-    const file = e.target.files[0];
-    if (!file) return;
-    $("original").value = await extractDocument(file);
-    status("Text extracted locally. Review it before analysis.");
-  } catch (e) {
-    status(e.message);
+    $("search").disabled = false;
   }
 };
 $("export").onclick = () => {
   if (!result) return;
-  const text = createBrief(result, mode);
-  const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
+  const url = URL.createObjectURL(
+    new Blob([createBrief(result)], { type: "text/markdown" }),
+  );
   const a = document.createElement("a");
   a.href = url;
-  a.download = "clausecompass-brief.md";
+  a.download = "airwise-family-plan.md";
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 $("print").onclick = () => window.print();
 $("clear").onclick = () => location.reload();
-for (const id of ["original", "revised", "role"])
-  $(id).addEventListener("input", () => {
-    result = null;
-    $("export").disabled = true;
-    $("badge").textContent = "INPUT CHANGED";
-    $("output").replaceChildren();
-    status("Input changed. Run a new review.");
-  });
+populate();

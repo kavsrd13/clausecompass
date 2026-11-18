@@ -1,47 +1,47 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requestSchema, resultSchema } from "../lib/contracts.js";
-const input = {
-  text: "Payment is due 30 days after invoice approval.",
-  role: "Client",
-};
-const result = {
-  summary: "Payment summary",
-  findings: [
-    {
-      title: "Payment",
-      explanation: "Payment follows approval.",
-      quote: "invoice approval",
-      document: "original",
+import { fetchAir } from "../lib/server/air.js";
+import { now, airResponse } from "./fixtures.js";
+test("read current model hour with provenance and fixed provider host", async () => {
+  const snapshot = await fetchAir(
+    { latitude: 28, longitude: 77 },
+    async (url) => {
+      assert.equal(url.hostname, "air-quality-api.open-meteo.com");
+      return { ok: true, json: async () => airResponse() };
     },
-  ],
-  questions: [],
-};
-test("reject whitespace-only source and question excess", () => {
-  assert.equal(
-    requestSchema.safeParse({ ...input, text: " ".repeat(100) }).success,
-    false,
+    now,
   );
-  assert.equal(
-    requestSchema.safeParse({ ...input, question: "q".repeat(1001) }).success,
-    false,
-  );
+  assert.equal(snapshot.kind, "modelled");
+  assert.equal(snapshot.current.aqi, 235);
+  assert.equal(snapshot.hours.length, 2);
 });
-test("reject blank finding labels, summaries and whitespace quotes", () => {
-  for (const value of [
-    { ...result, summary: " " },
-    { ...result, findings: [{ ...result.findings[0], title: " " }] },
-    { ...result, findings: [{ ...result.findings[0], quote: "   " }] },
+test("missing and stale data fail instead of becoming a demo", async () => {
+  for (const data of [
+    { hourly: { time: [], us_aqi: [], pm2_5: [] } },
+    { hourly: { time: [1], us_aqi: [100], pm2_5: [20] } },
+    {
+      hourly: { time: [Math.floor(now / 1000)], us_aqi: [null], pm2_5: [null] },
+    },
   ])
-    assert.equal(resultSchema.safeParse(value).success, false);
+    await assert.rejects(
+      fetchAir(
+        { latitude: 1, longitude: 1 },
+        async () => ({ ok: true, json: async () => data }),
+        now,
+      ),
+    );
 });
-test("preserve quote whitespace rather than altering source provenance", () => {
-  const value = {
-    ...result,
-    findings: [{ ...result.findings[0], quote: " invoice approval " }],
-  };
-  assert.equal(
-    resultSchema.parse(value).findings[0].quote,
-    " invoice approval ",
+test("provider failure and negative pollutant data rejected", async () => {
+  await assert.rejects(
+    fetchAir({ latitude: 1, longitude: 1 }, async () => ({ ok: false }), now),
+  );
+  const data = airResponse();
+  data.hourly.pm2_5[1] = -3;
+  await assert.rejects(
+    fetchAir(
+      { latitude: 1, longitude: 1 },
+      async () => ({ ok: true, json: async () => data }),
+      now,
+    ),
   );
 });

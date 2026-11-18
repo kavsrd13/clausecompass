@@ -1,15 +1,18 @@
-# Verification record — 17 November 2026
+# AirWise verification — 18 November 2026
 
-The Vercel application uses Gemini 3.1 Flash Lite configured server-side. Seven deterministic tests cover request limits, method/origin validation, credential gates, provider quota responses, source quote matching and malformed output. Build and formatting are checked separately.
+The legal-topic verification records are superseded; they do not establish current air-quality behavior. Current scope is in BUILD_PLAN.md.
 
-A live fictional review and a 30-to-60-day/liability-cap comparison returned valid exact source passages. Initial missing-information testing revealed that the model sometimes gave a generic summary; the task prompt was changed and the missing-answer assertion tightened. The opt-in scripts/live.mjs records subsequent results. These few checks do not establish the large accuracy benchmark proposed in BUILD_PLAN.md.
+Offline gates: formatting, ESLint, strict checkJs for domain/server/export modules, schema and domain tests, injected provider/API tests, DOM safety and form-structure tests, build. Results are recorded after the final checks.
 
-Browser inspection confirmed the deployed workspace renders with labeled inputs and controls. Further browser automation was interrupted by a tab-session error. Complete keyboard, screen-reader, mobile, PDF edge-case and WCAG testing is not established. No professional legal accuracy claim is made.
+Live public API: Open-Meteo queried using public New Delhi city coordinates. It returned a validated modelled US AQI/PM2.5 snapshot with 24 forecast hours. This proves provider integration at that test time, not a street-level observation or continuous availability. No air reading is permanently hard-coded as current.
 
-The prototype uses Vite/JavaScript and a Vercel API rather than the proposed Next.js/TypeScript stack. Shared distributed quotas, deterministic clause alignment, obligation tables and the full synthetic evaluation dataset are not implemented. Access-token protection restricts live API usage. The planning document remains a roadmap, not a completion report.
+Live Gemini: not yet verified for this new topic. The previous Vercel deployment and its secrets were deleted. AI selection is tested with injected synthetic responses; a new server-side credential configuration is needed for live verification. The fictional demo and guidance-only app work independently of Gemini.
 
-## Final smoke run
+Remaining limits: distributed quotas, full browser/mobile/screen-reader QA, professional review of the action catalogue, larger live AI evaluation and current deployment. These gaps prevent any defensible claim of a >97% judge score or complete WCAG conformance.
 
-A subsequent live run against the deployed Gemini 3.1 Flash Lite endpoint passed all three smoke checks: review (3,414 ms), comparison (3,398 ms), missing-information response (3,027 ms). The missing-information answer explicitly stated that no refund period was specified. Exact quote checks passed. An earlier run experienced a network connection reset and was retried; these timings are individual observations, not percentiles or a reliability claim. These smoke tests do not certify semantic accuracy or legal quality; role-specific explanations still require broader review.
-
-GitHub verification run 44044764382 passed formatting, seven deterministic tests, production build and the high-severity dependency audit. Public repository has one branch, main. No official challenge submission was performed.
+## Current results
+- All 40 deterministic tests pass, including AQI boundary checks, schema/input rejection, safeguards against unapproved AI actions, commute arithmetic, budget-specific options, stale-data handling, safe rendering, labels and the bundled demo workflow.
+- Two axe-core structural audits (empty and populated plan) report zero violations in the checked rules. Color contrast is explicitly disabled in jsdom; layout, real keyboard/screen-reader behavior and manual mobile checks remain unverified. This is not WCAG certification.
+- Formatting, ESLint, scoped strict type checking and production build pass.
+- Dependency audit reports zero known vulnerabilities after replacing Vite's flagged dependency chain with esbuild. No force downgrade or audit suppression was used.
+- Full local browser/HTTP preview was attempted but loopback access timed out in this environment. The bundled UI workflow passes in jsdom; direct public-provider integration returned valid data. Do not conflate those checks with a real-browser end-to-end pass.

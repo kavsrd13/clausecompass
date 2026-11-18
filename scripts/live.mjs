@@ -1,62 +1,39 @@
 import assert from "node:assert/strict";
-const text =
-  "The Client shall pay the Service Provider within 30 days after approval of an invoice. Either party may terminate on 14 days written notice. Liability is capped at the total fees paid.";
-const cases = [
-  { name: "review", second: "", question: "" },
-  {
-    name: "comparison",
-    second: text
-      .replace("30 days", "60 days")
-      .replace(
-        "Liability is capped at the total fees paid.",
-        "Liability is unlimited.",
-      ),
-    question: "",
-  },
-  {
-    name: "missing information",
-    second: "",
-    question:
-      "What exact refund period is specified? If it is not in the document, say so.",
-  },
-];
-for (const c of cases) {
-  const start = Date.now();
-  const r = await fetch(
-    (process.env.APP_URL || "https://clausecompass-self.vercel.app") +
-      "/api/analyze",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + process.env.APP_ACCESS_TOKEN,
-      },
-      body: JSON.stringify({
-        text,
-        role: "Service provider",
-        second: c.second,
-        question: c.question,
-      }),
-    },
+if (!process.env.APP_URL || !process.env.APP_ACCESS_TOKEN)
+  throw Error(
+    "Set APP_URL and APP_ACCESS_TOKEN for an explicitly configured running API.",
   );
-  const d = await r.json();
-  assert.equal(r.status, 200, JSON.stringify(d));
-  assert.equal(d.incomplete, false);
-  for (const f of d.findings)
-    assert.ok((f.document === "original" ? text : c.second).includes(f.quote));
-  if (c.name === "comparison") assert.match(JSON.stringify(d), /60/);
-  if (c.name === "missing information")
-    assert.match(
-      d.summary,
-      /not (specified|stated|located|provided|mentioned|included)|does not|no refund|absent|unspecified/i,
-    );
-  console.log(
-    JSON.stringify({
-      case: c.name,
-      status: "passed",
-      milliseconds: Date.now() - start,
-      findings: d.findings.length,
-      summary: d.summary,
-    }),
-  );
-}
+const profile = {
+  city: "New Delhi, India",
+  latitude: 28.61,
+  longitude: 77.21,
+  sensitive: true,
+  commute: "car",
+  distanceKm: 8,
+  days: 5,
+  budget: "free",
+  purifier: false,
+  cooking: "gas",
+  goal: "No-cost school pickup",
+};
+const r = await fetch(new URL("/api/analyze", process.env.APP_URL), {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.APP_ACCESS_TOKEN}`,
+  },
+  body: JSON.stringify(profile),
+  signal: AbortSignal.timeout(45000),
+});
+const data = await r.json();
+assert.equal(r.status, 200, JSON.stringify(data));
+assert.equal(data.ai, true);
+assert.equal(data.snapshot.kind, "modelled");
+assert.ok(data.actions.length > 0);
+console.log(
+  JSON.stringify({
+    status: r.status,
+    actions: data.actions.length,
+    modelledHour: data.snapshot.current.time,
+  }),
+);
