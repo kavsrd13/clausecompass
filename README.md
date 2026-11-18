@@ -3,7 +3,7 @@
 Challenge 6: a family smog-day planner with location-aware modelled outdoor air, indoor guidance, lower-emission routines and transparent impact explanations. This replaces the earlier legal-document topic.
 
 ## Run
-Node 24: `npm ci`, `npm run dev` for the UI/demo. The local dev server includes same-origin API routes and live public air data. The fictional demo requires no credentials or network. City search and modelled air use Open-Meteo APIs. For Gemini, configure GEMINI_API_KEY, GEMINI_MODEL (default gemini-3.1-flash-lite), and APP_ACCESS_TOKEN in ignored server environment settings. Enter only the app access token in AI personalization access. Never enter a Gemini key in the UI. The old Vercel project is deleted; no replacement deployment has been created.
+Node 24: `npm ci`, `npm run dev` for the UI/demo. The local dev server includes same-origin API routes and live public air data. The fictional demo requires no credentials or network. City search and modelled air use Open-Meteo APIs. For Gemini, configure GEMINI_API_KEY, GEMINI_MODEL (default gemini-3.1-flash-lite), and APP_ACCESS_TOKEN in ignored server environment settings. Enter only the app access token in AI personalization access. Never enter a Gemini key in the UI. Production: https://airwise-pearl.vercel.app. The earlier ClauseCompass deployment remains deleted; this is a new AirWise Vercel project.
 
 ## What it does
 - City search and preset cities; no exact address or GPS required.

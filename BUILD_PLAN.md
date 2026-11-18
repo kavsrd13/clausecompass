@@ -35,4 +35,4 @@ A score above 97% in each category is an ambition, not a prediction. Judge weigh
 4. Verify Gemini separately when a valid server credential is configured; never claim live AI based on mocks.
 5. Document accessibility, provider use limits, privacy and outstanding limitations.
 6. Preserve one main branch and source below 10 MB; commit no private environment files.
-7. The old Vercel project was deleted at the user's request. Do not recreate or deploy without a new deployment request.
+7. The old Vercel project was deleted at the user's request. A new AirWise project was deployed on 18 November 2026 after a new explicit deployment request and separate approval for Gemini key reuse.
