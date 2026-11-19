@@ -2,8 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
-import { lowestWindow } from "../lib/scenario.js";
+import { activitySummary, lowestWindow } from "../lib/scenario.js";
 import { askPlan } from "../lib/client/api.js";
+import { createBrief } from "../lib/client/export.js";
 import { showTools } from "../lib/client/plan-tools.js";
 import { buildPlan, demoSnapshot } from "../lib/air.js";
 import { profile, now, responseRecorder } from "./fixtures.js";
@@ -100,12 +101,23 @@ test("family can compare windows, switch travel days and ask only about the acti
     kind: "modelled",
     hours: snapshot.hours.map((h) => ({ ...h, aqi: 20 })),
   };
+  let clock = now;
+  t.mock.method(Date, "now", () => clock);
+  let tick;
+  t.mock.method(win, "setTimeout", (callback) => {
+    tick = callback;
+    return 1;
+  });
   showTools(
     buildPlan({ ...profile, commute: "public" }, live),
     () => token,
     controller.signal,
   );
   assert.match(get("window-result").textContent, /Modelled forecast/);
+  const firstRecommendation = get("window-result").textContent;
+  clock += 3600000;
+  tick();
+  assert.notEqual(get("window-result").textContent, firstRecommendation);
   assert.equal(get("switch-days").disabled, true);
   const pending = Promise.withResolvers();
   lookup.mock.mockImplementation(() => pending.promise);
@@ -114,12 +126,37 @@ test("family can compare windows, switch travel days and ask only about the acti
   controller.abort();
   pending.resolve(Response.json({ answer: "obsolete" }));
   await waiting;
+  assert.equal(get("plan-question").value, "");
+  assert.equal(get("ask-plan").onclick, null);
+  assert.equal(get("switch-days").oninput, null);
+  assert.equal(get("window-start").onchange, null);
   assert.doesNotMatch(get("plan-answer").textContent, /obsolete/);
   get("switch-days").remove();
   assert.throws(
     () =>
       showTools(buildPlan(profile, snapshot), () => token, controller.signal),
     /Missing planner control/,
+  );
+});
+
+test("an old current reading remains context but cannot become a future activity", () => {
+  const snapshot = { ...demoSnapshot(now), kind: "modelled" };
+  const base = snapshot.current.time;
+  snapshot.hours = [0, 2, 3].map((offset, i) => ({
+    time: base + 3600 * offset,
+    aqi: 10 + i,
+    pm25: 10,
+  }));
+  const range = { first: 0, last: 2, duration: 1 };
+  for (const minutes of [15, 75]) {
+    assert.match(
+      activitySummary(snapshot, range, String, (base + minutes * 60) * 1000),
+      new RegExp(String(base + 7200)),
+    );
+  }
+  assert.match(
+    activitySummary(snapshot, { ...range, last: 0 }, String, (base + 1) * 1000),
+    /No complete/,
   );
 });
 test("question route protects access and returns only an eligible plan fact", async (t) => {
@@ -208,6 +245,16 @@ test("question route protects access and returns only an eligible plan fact", as
   assert.equal((await call(body)).code, 502);
   process.env.GEMINI_API_KEY = "";
   assert.equal((await call(body)).code, 503);
+});
+
+test("an expired live plan exports the selected commute but no past activity recommendation", () => {
+  const plan = buildPlan(profile, {
+    ...demoSnapshot(Date.UTC(2020, 0, 1)),
+    kind: "modelled",
+  });
+  const brief = createBrief(plan, { first: 0, last: 3, duration: 1, days: 2 });
+  assert.match(brief, /No complete window/);
+  assert.match(brief, /Replaced: 32 km/);
 });
 
 test("questions distinguish a timeout from access and quota failures", async (t) => {

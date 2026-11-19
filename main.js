@@ -32,6 +32,8 @@ const downloadButton = element("export", HTMLButtonElement);
 const printButton = element("print", HTMLButtonElement);
 /** @type {Plan | null} */
 let result = null;
+/** @type {ReturnType<typeof showTools> | undefined} */
+let selection;
 const planRequest = new LatestRequest(45_000, setPlanBusy);
 const cityRequest = new LatestRequest(12_000, (busy) => {
   searchButton.disabled = busy;
@@ -51,6 +53,7 @@ function clearPlan(label, message) {
   element("plan-tools", HTMLElement).hidden = true;
   planRequest.cancel();
   result = null;
+  selection = undefined;
   output.replaceChildren();
   badge.textContent = label;
   status.textContent = message;
@@ -66,7 +69,7 @@ function cancelSearch() {
 /** @param {Plan} plan */
 function showPlan(plan) {
   renderReview(document, plan);
-  showTools(plan, () => tokenInput.value, toolRequest.signal);
+  selection = showTools(plan, () => tokenInput.value, toolRequest.signal);
   result = plan;
   downloadButton.disabled = false;
   printButton.disabled = false;
@@ -171,7 +174,7 @@ element("demo", HTMLButtonElement).addEventListener("click", () => {
 downloadButton.addEventListener("click", () => {
   if (!result) return;
   const url = URL.createObjectURL(
-    new Blob([createBrief(result)], { type: "text/markdown" }),
+    new Blob([createBrief(result, selection?.())], { type: "text/markdown" }),
   );
   const link = document.createElement("a");
   link.href = url;

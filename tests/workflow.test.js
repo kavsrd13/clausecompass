@@ -32,6 +32,32 @@ function openPlanner(t, fetcher) {
   return dom;
 }
 
+test("download saves the selected commute and two-hour window, and Clear releases the tools", async (t) => {
+  const { window: w } = openPlanner(t);
+  const el = (id) => w.document.getElementById(id);
+  w.Blob = Blob;
+  let download;
+  w.URL.createObjectURL = (blob) => {
+    download = blob;
+    return "blob:fixture";
+  };
+  w.HTMLAnchorElement.prototype.click = () => {};
+  el("demo").click();
+  el("window-duration").value = "2";
+  el("window-duration").dispatchEvent(new w.Event("change"));
+  el("export").click();
+  const markdown = await download.text();
+  assert.match(markdown, /Baseline: 80 km.*Proposed: 48 km.*Replaced: 32 km/);
+  const times = [...markdown.matchAll(/(\S+Z) \(UTC\)/g)].map((m) =>
+    Date.parse(m[1]),
+  );
+  assert.equal(times[1] - times[0], 7200000);
+  el("plan-question").value = "Private household question";
+  el("clear").click();
+  assert.equal(el("plan-question").value, "");
+  assert.equal(el("ask-plan").onclick, null);
+});
+
 test("bundled app demo, impact and profile invalidation work together", (t) => {
   const dom = openPlanner(t);
   const doc = dom.window.document;
