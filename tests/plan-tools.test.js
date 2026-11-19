@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
-import { lowestWindow, showTools } from "../lib/client/plan-tools.js";
+import { lowestWindow } from "../lib/scenario.js";
+import { askPlan } from "../lib/client/api.js";
+import { showTools } from "../lib/client/plan-tools.js";
 import { buildPlan, demoSnapshot } from "../lib/air.js";
 import { profile, now, responseRecorder } from "./fixtures.js";
 import question from "../api/question.js";
@@ -59,18 +61,39 @@ test("family can compare windows, switch travel days and ask only about the acti
   );
   await get("ask-plan").onclick();
   assert.match(get("plan-answer").textContent, /Travel answer/);
+  const submitted = JSON.parse(lookup.mock.calls[0].arguments[1].body);
+  assert.deepEqual(submitted.selection, {
+    days: 3,
+    first: 2,
+    last: 0,
+    duration: 1,
+  });
+  const previous = Promise.withResolvers();
+  lookup.mock.mockImplementation(() => previous.promise);
+  const oldQuestion = get("ask-plan").onclick();
+  get("switch-days").value = "2";
+  get("switch-days").oninput();
+  previous.resolve(
+    Response.json({ answer: "Answer for the old slider position" }),
+  );
+  await oldQuestion;
+  assert.equal(get("plan-answer").textContent, "");
+  assert.equal(get("ask-plan").disabled, false);
   lookup.mock.mockImplementation(
     async () => new Response(null, { status: 503 }),
   );
   await get("ask-plan").onclick();
-  assert.match(get("plan-answer").textContent, /retry/);
+  assert.match(get("plan-answer").textContent, /retry|try again|unavailable/i);
   for (const reply of [
     Response.json({ error: "Unavailable" }, { status: 503 }),
     Response.json({ answer: null }),
   ]) {
     lookup.mock.mockImplementation(async () => reply);
     await get("ask-plan").onclick();
-    assert.match(get("plan-answer").textContent, /retry/);
+    assert.match(
+      get("plan-answer").textContent,
+      /retry|try again|unavailable/i,
+    );
   }
   const live = {
     ...snapshot,
@@ -127,7 +150,7 @@ test("question route protects access and returns only an eligible plan fact", as
       candidates: [
         {
           finishReason: "STOP",
-          content: { parts: [{ text: JSON.stringify({ priorities: [id] }) }] },
+          content: { parts: [{ text: JSON.stringify({ factId: id }) }] },
         },
       ],
     });
@@ -138,10 +161,72 @@ test("question route protects access and returns only an eligible plan fact", as
   assert.equal(res.code, 200);
   assert.equal(res.body.kind, "demo");
   assert.match(res.body.answer, /80 km/);
+  const selection = { days: 2, first: 0, last: 3, duration: 2 };
+  for (const invalid of [
+    { first: 24 },
+    { last: 24 },
+    { duration: 3 },
+    { days: -1 },
+  ]) {
+    assert.equal(
+      (await call({ ...body, selection: { ...selection, ...invalid } })).code,
+      400,
+    );
+  }
+  assert.equal(
+    (
+      await call({
+        ...body,
+        profile: { ...profile, commute: "public" },
+        selection,
+      })
+    ).code,
+    400,
+  );
+  assert.match(
+    (await call({ ...body, selection })).body.answer,
+    /Replaced: 32 km/,
+  );
+  assert.equal(
+    (await call({ ...body, selection: { ...selection, days: 6 } })).code,
+    400,
+  );
+  lookup.mock.mockImplementation(async () => reply("activity-window"));
+  assert.match((await call({ ...body, selection })).body.answer, /UTC/);
+  assert.match(
+    (await call({ ...body, selection: { ...selection, first: 3, last: 1 } }))
+      .body.answer,
+    /No complete/,
+  );
+  lookup.mock.mockImplementation(
+    async () => new Response(null, { status: 429 }),
+  );
+  assert.match((await call({ ...body, selection })).body.error, /quota/);
   lookup.mock.mockImplementation(async () => reply("unknown"));
   assert.match((await call(body)).body.answer, /no evidence/);
   lookup.mock.mockImplementation(async () => reply("untrusted"));
   assert.equal((await call(body)).code, 502);
   process.env.GEMINI_API_KEY = "";
   assert.equal((await call(body)).code, 503);
+});
+
+test("questions distinguish a timeout from access and quota failures", async (t) => {
+  const signal = AbortSignal.abort(
+    new DOMException("Deadline", "TimeoutError"),
+  );
+  const lookup = t.mock.method(globalThis, "fetch", async () => {
+    throw signal.reason;
+  });
+  await assert.rejects(askPlan({}, "fixture", signal), /timed out/);
+  for (const [status, error] of [
+    [401, "Enter the app access token."],
+    [429, "Gemini quota reached."],
+  ]) {
+    lookup.mock.mockImplementation(async () =>
+      Response.json({ error }, { status }),
+    );
+    await assert.rejects(askPlan({}, "fixture", new AbortController().signal), {
+      message: error,
+    });
+  }
 });

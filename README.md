@@ -18,6 +18,8 @@ After building a plan, open **Explore your plan**. Select the first and last for
 
 **Ask about my plan** uses the same private app token as personalization. The server rebuilds eligible guidance from the submitted household and forecast. Gemini selects a reference from the plan and the server returns the corresponding action, forecast reading, travel calculation or an insufficient-evidence response. Fictional scenarios remain labelled.
 
+To check a scenario end to end, choose the fictional 8 km solo commute and switch two of five travel days. The simulator and the answer to “How many kilometres does my current selection replace?” both use 32 km. Changing the slider or forecast window clears the previous answer. Window answers include UTC timestamps so an exported or copied time can be interpreted across devices.
+
 ## Run locally
 
 Use Node.js 24 and npm.
