@@ -39,7 +39,11 @@ export function createAnalyzeHandler({
     try {
       const snapshot = await fetchAir(parsed.data, fetcher, now());
       const plan = buildPlan(parsed.data, snapshot);
-      const priorities = await prioritize(plan, settings, fetcher);
+      const priorities = await prioritize(
+        plan,
+        { apiKey: settings.apiKey, model: settings.model },
+        fetcher,
+      );
       const actions = orderActions(plan.actions, priorities);
       return res.status(200).json({ ...plan, ai: true, actions });
     } catch (error) {

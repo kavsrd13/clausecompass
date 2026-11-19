@@ -14,20 +14,23 @@ const placeSchema = z.extend(locationSchema, {
 });
 const geocodingSchema = z.object({
   results: z._default(
-    z.array(placeSchema).check(z.maxLength(MAX_CITY_RESULTS)),
+    z.array(z.unknown()).check(z.maxLength(MAX_CITY_RESULTS)),
     [],
   ),
 });
 
 /** Keep a complete city name when its administrative qualifiers are too long for a profile.
- * @param {z.infer<typeof placeSchema>} place */
-function cityOption({ name, admin1, country, latitude, longitude }) {
+ * @param {unknown} value */
+function cityOption(value) {
+  const place = placeSchema.safeParse(value);
+  if (!place.success) return null;
+  const { name, admin1, country, latitude, longitude } = place.data;
   for (const parts of [[name, admin1, country], [name, country], [name]]) {
     const label = [...new Set(parts.filter(Boolean))].join(", ");
     const city = citySchema.safeParse({ name: label, latitude, longitude });
     if (city.success) return city.data;
   }
-  throw new Error("City name cannot be represented in a household profile");
+  return null;
 }
 
 /** @param {typeof fetch} fetcher @returns {import("../lib/server/http.js").ApiHandler} */
@@ -52,7 +55,10 @@ export function createLocationsHandler(fetcher = fetch) {
       });
       if (!response.ok) throw new Error("Geocoder unavailable");
       const { results } = geocodingSchema.parse(await response.json());
-      return res.status(200).json({ locations: results.map(cityOption) });
+      const locations = results.map(cityOption).filter((city) => city !== null);
+      if (results.length > 0 && locations.length === 0)
+        throw new Error("Geocoder returned no usable records");
+      return res.status(200).json({ locations });
     } catch {
       return res
         .status(502)

@@ -53,6 +53,25 @@ test("long administrative names do not produce a city the planner rejects", asyn
   );
 });
 
+test("one unusable city record cannot hide the valid matches", async () => {
+  const results = [
+    { ...place, name: "X".repeat(101) },
+    { latitude: 300 },
+    place,
+  ];
+  const response = await search("São Paulo", async () =>
+    Response.json({ results }),
+  );
+  assert.equal(response.code, 200);
+  assert.deepEqual(response.body.locations, [
+    {
+      name: "São Paulo, Brazil",
+      latitude: place.latitude,
+      longitude: place.longitude,
+    },
+  ]);
+});
+
 test("no matches, invalid provider results and service failures stay distinguishable", async () => {
   const empty = await search("Atlantis", async () =>
     Response.json({ generationtime_ms: 1 }),

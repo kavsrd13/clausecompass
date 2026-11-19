@@ -10,11 +10,12 @@
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.js",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"api/*.js\" --test-coverage-include=\"lib/*.js\" --test-coverage-include=\"lib/server/*.js\" --test tests/*.test.js",
     "test:browser": "playwright test",
     "format:check": "prettier --check main.js style.css index.html api lib tests scripts types *.json *.config.js",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build"
   },
   "dependencies": {
     "zod": "4.6.7"

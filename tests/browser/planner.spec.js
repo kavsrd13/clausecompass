@@ -6,6 +6,43 @@ import { now } from "../fixtures.js";
 
 const require = createRequire(import.meta.url);
 
+test("a mismatched AI response can be retried and only the matching plan can be downloaded", async ({
+  page,
+}) => {
+  const snapshot = { ...demoSnapshot(now), kind: "modelled" };
+  await page.route("**/api/analyze", (route) => {
+    const household = route.request().postDataJSON();
+    return route.fulfill({
+      json: buildPlan(household, snapshot, ["community"], true),
+    });
+  });
+  await page.route(
+    "**/api/analyze",
+    (route) => {
+      const different = {
+        ...route.request().postDataJSON(),
+        city: "Different city",
+      };
+      return route.fulfill({
+        json: buildPlan(different, snapshot, ["community"], true),
+      });
+    },
+    { times: 1 },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "Personalize with Gemini" }).click();
+  await expect(page.locator("#status")).toContainText("different household");
+  await expect(page.locator("#output")).toBeEmpty();
+  await expect(
+    page.getByRole("button", { name: "Download family plan" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Personalize with Gemini" }).click();
+  await expect(page.locator("#badge")).toHaveText("LIVE DATA · GEMINI");
+  await expect(
+    page.getByRole("button", { name: "Download family plan" }),
+  ).toBeEnabled();
+});
+
 async function checkAccessibility(page) {
   const violations = await page.evaluate(async () => {
     const result = await window.axe.run(document, {

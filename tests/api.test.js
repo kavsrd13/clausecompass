@@ -152,3 +152,48 @@ test("an unusable forecast stops the request before Gemini is contacted", async 
   assert.match(response.body.error, /air-quality/);
   assert.deepEqual(hosts, ["air-quality-api.open-meteo.com"]);
 });
+
+test("the normal AI route uses its configured model and sends just the provider credential to Google", async (t) => {
+  t.mock.property(process, "env", {
+    ...process.env,
+    GEMINI_API_KEY: "fixture-provider-key",
+    APP_ACCESS_TOKEN: "test-only",
+    GEMINI_MODEL: "fixture-model",
+  });
+  const response = responseRecorder();
+  const handler = createAnalyzeHandler({
+    now: () => now,
+    fetcher: async (url, options) => {
+      if (new URL(url).hostname === "air-quality-api.open-meteo.com")
+        return Response.json(airResponse());
+      assert.equal(
+        new URL(url).pathname,
+        "/v1beta/models/fixture-model:generateContent",
+      );
+      assert.equal(options.headers["x-goog-api-key"], "fixture-provider-key");
+      assert.equal(new Headers(options.headers).has("Authorization"), false);
+      return ai();
+    },
+  });
+  await handler(req(), response);
+  assert.equal(response.code, 200);
+});
+
+test("a non-quota Gemini outage tells the family which service is unavailable", async () => {
+  const response = await run(req(), {
+    fetcher: async (url) =>
+      new URL(url).hostname === "air-quality-api.open-meteo.com"
+        ? Response.json(airResponse())
+        : new Response(null, { status: 503 }),
+  });
+  assert.equal(response.code, 502);
+  assert.match(response.body.error, /Gemini is unavailable/);
+});
+
+test("a malformed origin is rejected before an external lookup", async () => {
+  const response = await run({
+    ...req(),
+    headers: { ...req().headers, origin: "invalid origin" },
+  });
+  assert.equal(response.code, 403);
+});
