@@ -1,5 +1,11 @@
 # Verification · 19 November 2026
 
+The planner and provider refactor passed 98 Node tests and six desktop and phone-width browser workflows. The Node suite exercised 100% of lines, 98.88% of branches and 100% of functions across the measured modules. The production JavaScript bundle measured 40,832 bytes, or 14,698 bytes gzip. The dependency audit returned zero known vulnerabilities at verification time.
+
+For the same burst of 20 synthetic public requests at identical coordinates, the previous handler made 20 upstream calls and the revised handler made one. All callers received HTTP 200 in both runs. This measures duplicate work within a single running instance. Production throughput and cross-instance concurrency depend on the hosting platform and provider. Run `node --test tests/forecast-requests.test.js` to verify sharing, retry and capacity behavior.
+
+## Earlier release at `63f9129`
+
 The standards update passed 91 Node tests. Coverage includes API endpoints, server and domain modules, plus the client HTTP adapter, renderer and exporter. Across these modules, line and function coverage were 100% and branch coverage was 98.77%. CI enforces a 98% floor for each measure. The browser entry point and form interactions are exercised in the bundled workflows.
 
 ## Earlier release at `417ecd9`

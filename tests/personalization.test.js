@@ -1,17 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPlan, demoSnapshot } from "../lib/air.js";
+import { applyRanking, buildPlan, demoSnapshot } from "../lib/air.js";
 import { loadPersonalization } from "../lib/client/api.js";
 import { createBrief } from "../lib/client/export.js";
 import { now, profile } from "./fixtures.js";
 
 function modelledPlan() {
-  return buildPlan(
-    profile,
-    { ...demoSnapshot(now), kind: "modelled" },
-    ["community"],
-    true,
-  );
+  const snapshot = { ...demoSnapshot(now), kind: "modelled" };
+  return applyRanking(buildPlan(profile, snapshot), ["community"]);
 }
 
 function receivePlan(t, response) {

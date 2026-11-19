@@ -30,6 +30,8 @@ Open `http://127.0.0.1:5173`. The local server builds the client on startup and 
 3. For AI personalization, Gemini receives the eligible IDs and titles. The server checks its ranking against those IDs and puts mandatory precautions first. Application code supplies source links, guidance and travel arithmetic.
 4. The travel scenario estimates solo-car kilometres that could be replaced. Actual emissions and exposure depend on the route, vehicle, occupancy and indoor conditions.
 
+When families in the same city check the forecast at the same time, one running server instance shares the pending provider request for identical coordinates. Each household still builds its own plan. In a test with 20 overlapping requests, all 20 received a forecast and Open-Meteo's test double received one call. After that lookup finished, refreshing made a new call. [Concurrency tests](tests/forecast-requests.test.js)
+
 ## Checks
 
 Run `npm run verify` for formatting, lint, strict type checking, tests with API and domain coverage, and the production build. Run `npx playwright install chromium` followed by `npm run test:browser` for the desktop and phone-width workflows. The browser suite uses fixtures for external services. [Verification results](docs/VERIFICATION.md) · [Coding standards and design decisions](docs/CODE_QUALITY.md) · [Continuous integration](https://github.com/kavsrd13/clausecompass/actions/workflows/verify.yml)

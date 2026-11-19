@@ -1,5 +1,5 @@
 import { requestSchema } from "../lib/contracts.js";
-import { buildPlan, orderActions } from "../lib/air.js";
+import { applyRanking, buildPlan } from "../lib/air.js";
 import { fetchAir } from "../lib/server/air.js";
 import { allowRequest, requireAccess } from "../lib/server/http.js";
 import { prioritize, ProviderError } from "../lib/server/gemini.js";
@@ -49,8 +49,7 @@ export function createAnalyzeHandler({
         { apiKey: settings.apiKey, model: settings.model },
         fetcher,
       );
-      const actions = orderActions(plan.actions, priorities);
-      return res.status(200).json({ ...plan, ai: true, actions });
+      return res.status(200).json(applyRanking(plan, priorities));
     } catch (error) {
       if (error instanceof ProviderError)
         return res.status(error.status).json({ error: error.message });

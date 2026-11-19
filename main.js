@@ -16,6 +16,7 @@ import {
 } from "./lib/client/form.js";
 import { renderReview } from "./lib/client/review.js";
 import { createBrief } from "./lib/client/export.js";
+import { LatestRequest } from "./lib/client/latest-request.js";
 /** @import {Plan} from "./lib/contracts.js" */
 
 const output = element("output", HTMLElement);
@@ -29,10 +30,10 @@ const downloadButton = element("export", HTMLButtonElement);
 const printButton = element("print", HTMLButtonElement);
 /** @type {Plan | null} */
 let result = null;
-/** @type {AbortController | null} */
-let planRequest = null;
-/** @type {AbortController | null} */
-let cityRequest = null;
+const planRequest = new LatestRequest(45_000, setPlanBusy);
+const cityRequest = new LatestRequest(12_000, (busy) => {
+  searchButton.disabled = busy;
+});
 
 /** @param {boolean} busy */
 function setPlanBusy(busy) {
@@ -43,9 +44,7 @@ function setPlanBusy(busy) {
 
 /** @param {string} label @param {string} message */
 function clearPlan(label, message) {
-  planRequest?.abort();
-  planRequest = null;
-  setPlanBusy(false);
+  planRequest.cancel();
   result = null;
   output.replaceChildren();
   badge.textContent = label;
@@ -55,9 +54,7 @@ function clearPlan(label, message) {
 }
 
 function cancelSearch() {
-  cityRequest?.abort();
-  cityRequest = null;
-  searchButton.disabled = false;
+  cityRequest.cancel();
   searchStatus.textContent = "";
 }
 
@@ -98,65 +95,47 @@ async function runPlan(mode) {
       ? "Checking modelled air and personalizing priorities…"
       : "Checking modelled outdoor air…",
   );
-  const request = new AbortController();
-  planRequest = request;
-  setPlanBusy(true);
-  try {
-    const signal = AbortSignal.any([
-      request.signal,
-      AbortSignal.timeout(45_000),
-    ]);
-    const profile = readProfile();
-    const plan = ai
-      ? await loadPersonalization(profile, signal, tokenInput.value)
-      : await loadGuidance(profile, signal);
-    if (planRequest === request) showPlan(plan);
-  } catch (error) {
-    if (planRequest === request) {
+  await planRequest.run(
+    (signal) => {
+      const profile = readProfile();
+      return ai
+        ? loadPersonalization(profile, signal, tokenInput.value)
+        : loadGuidance(profile, signal);
+    },
+    showPlan,
+    (error) => {
       badge.textContent = "PLAN UNAVAILABLE";
       status.textContent = errorMessage(error);
-    }
-  } finally {
-    if (planRequest === request) {
-      planRequest = null;
-      setPlanBusy(false);
-    }
+    },
+  );
+}
+
+/** @param {import("./lib/contracts.js").City[]} matches */
+function showCityResults(matches) {
+  if (matches.length === 0) {
+    searchStatus.textContent = "No matching city found. Try another name.";
+    return;
   }
+  showCities(matches);
+  clearPlan("CITY CHANGED", "Build a plan for the selected city.");
+  searchStatus.textContent = "Select the correct city and build your plan.";
 }
 
 async function findCity() {
   const query = searchInput.value.trim();
-  cancelSearch();
   if (query.length < 2) {
+    cancelSearch();
     searchStatus.textContent = "Enter at least two characters for city search.";
     return;
   }
-  const request = new AbortController();
-  cityRequest = request;
-  searchButton.disabled = true;
   searchStatus.textContent = "Searching for your city…";
-  try {
-    const signal = AbortSignal.any([
-      request.signal,
-      AbortSignal.timeout(12_000),
-    ]);
-    const matches = await searchCities(query, signal);
-    if (cityRequest !== request) return;
-    if (matches.length === 0) {
-      searchStatus.textContent = "No matching city found. Try another name.";
-      return;
-    }
-    showCities(matches);
-    clearPlan("CITY CHANGED", "Build a plan for the selected city.");
-    searchStatus.textContent = "Select the correct city and build your plan.";
-  } catch (error) {
-    if (cityRequest === request) searchStatus.textContent = errorMessage(error);
-  } finally {
-    if (cityRequest === request) {
-      cityRequest = null;
-      searchButton.disabled = false;
-    }
-  }
+  await cityRequest.run(
+    (signal) => searchCities(query, signal),
+    showCityResults,
+    (error) => {
+      searchStatus.textContent = errorMessage(error);
+    },
+  );
 }
 
 form.addEventListener("submit", (event) => {

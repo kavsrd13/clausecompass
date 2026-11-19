@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPlan, demoSnapshot } from "../lib/air.js";
+import { applyRanking, buildPlan, demoSnapshot } from "../lib/air.js";
 import { now, profile } from "./fixtures.js";
 
 function supportedHouseholds() {
@@ -46,12 +46,10 @@ test("every supported household keeps its mandatory precautions when Gemini pref
       hours: [current],
     };
     for (const household of households) {
-      const plan = buildPlan(
-        household,
-        snapshot,
-        ["community", "community"],
-        true,
-      );
+      const plan = applyRanking(buildPlan(household, snapshot), [
+        "community",
+        "community",
+      ]);
       const reason = JSON.stringify({ household, aqi: boundary.aqi });
       const needsPrecautions = household.sensitive
         ? boundary.sensitive

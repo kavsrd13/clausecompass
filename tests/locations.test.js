@@ -95,6 +95,16 @@ test("no matches, invalid provider results and service failures stay distinguish
   );
 });
 
+test("an upstream JSON error is reported as an outage, even with a successful HTTP status", async () => {
+  const response = await search("São Paulo", async () =>
+    Response.json({ error: true, reason: "provider detail" }),
+  );
+  assert.equal(response.code, 502);
+  assert.deepEqual(response.body, {
+    error: "City search unavailable. Use a preset city.",
+  });
+});
+
 test("invalid city queries are rejected before contacting the geocoder", async () => {
   let calls = 0;
   for (const query of [" ", "x", "x".repeat(81), 100]) {

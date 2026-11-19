@@ -20,6 +20,7 @@ const profile = {
 };
 const response = await fetch(new URL("/api/analyze", process.env.APP_URL), {
   method: "POST",
+  redirect: "error",
   headers: {
     "Content-Type": "application/json",
     Authorization: `Bearer ${process.env.APP_ACCESS_TOKEN}`,

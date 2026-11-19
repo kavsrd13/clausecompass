@@ -65,9 +65,10 @@ test("model discovery follows opaque page tokens and returns each generation mod
   });
   const tokens = [];
   const token = "next+/=";
-  const response = await requestModels(async (url) => {
+  const response = await requestModels(async (url, options) => {
     tokens.push(url.searchParams.get("pageToken"));
     assert.equal(url.origin, "https://generativelanguage.googleapis.com");
+    assert.equal(options.redirect, "error");
     return Response.json(
       tokens.length === 1
         ? { models: [model("models/a")], nextPageToken: token }

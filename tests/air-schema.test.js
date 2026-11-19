@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { planSchema, snapshotSchema } from "../lib/contracts.js";
-import { buildPlan, demoSnapshot } from "../lib/air.js";
+import { applyRanking, buildPlan, demoSnapshot } from "../lib/air.js";
 import { now, profile } from "./fixtures.js";
 test("demo passes full response schema", () =>
   assert.ok(planSchema.safeParse(buildPlan(profile, demoSnapshot())).success));
@@ -24,7 +24,8 @@ test("the 90-minute freshness limit includes its exact boundary", () => {
 });
 
 test("a fictional plan keeps its demo provenance even when priorities are supplied", () => {
-  const demo = buildPlan(profile, demoSnapshot(now), ["community"], true);
+  const demo = buildPlan(profile, demoSnapshot(now));
+  assert.deepEqual(applyRanking(demo, ["community"]), demo);
   assert.equal(demo.ai, false);
   assert.equal(planSchema.safeParse({ ...demo, ai: true }).success, false);
 });

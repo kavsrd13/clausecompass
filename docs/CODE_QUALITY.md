@@ -7,17 +7,19 @@ AirWise shares the household, city, forecast and plan contracts between the brow
 | Household fields or API payloads | [Shared validation schemas](../lib/contracts.js) | Invalid profiles, coordinates and upstream data |
 | An action or eligibility rule | [Eligibility policy](../lib/actions.js), [guidance and sources](../lib/guidance.js), [AQI bands](../lib/aqi.js) | Budget, travel, cooking, cleaner access and sensitivity scenarios |
 | Priority order or travel arithmetic | [Plan builder](../lib/air.js) | AQI boundaries, mandatory actions, duplicates and solo-car scenarios |
-| Provider integration | [Forecast contract](../lib/forecast.js), [Open-Meteo adapter](../lib/server/air.js), [Gemini](../lib/server/gemini.js), [city search](../api/locations.js) | Missing data, chronology, mixed-quality city results, malformed rankings and quotas |
-| Browser interaction | [Events and request ownership](../main.js), [form](../lib/client/form.js), [API client](../lib/client/api.js) | Late results, profile edits, failure recovery and payload privacy |
+| Provider integration | [Forecast adapter](../lib/server/air.js), [city search](../lib/server/geocoding.js), [Gemini ranking](../lib/server/gemini.js), [model discovery](../lib/server/model-catalogue.js) | Missing data, chronology, mixed-quality city results, malformed rankings and quotas |
+| Browser interaction | [Event handlers](../main.js), [request cancellation](../lib/client/latest-request.js), [form](../lib/client/form.js), [API client](../lib/client/api.js) | Late results, profile edits, failure recovery and payload privacy |
 | Display or export | [Plan renderer](../lib/client/review.js), [Markdown export](../lib/client/export.js) | Keyboard flow, hourly table, accessibility checks and a real file download |
 
 ## Three decisions worth preserving
 
-- The API constructs the eligible plan once. Gemini sees compact ID and title pairs. The response schema enumerates the IDs for that household, and the ordering function preserves mandatory and unranked actions.
-- Each city search and plan request owns its own abort controller. A result may update the UI only while that controller is current. Tests deliberately deliver a superseded response after a newer result.
+- To change how Gemini priorities affect a household, edit `applyRanking`. The API and browser both use it. It preserves mandatory actions, retains eligible actions that Gemini omitted, and keeps the provenance of fictional plans. `buildPlan` creates the original guidance without any provider dependency.
+- City search and plan generation each own a `LatestRequest` instance. Each instance handles cancellation, timeout and busy state for its controls. Tests deliberately settle old requests while a replacement is busy and expire a deadline while the response body is being read.
 - Forecast pollutant arrays must align with a strictly increasing time axis. Missing values create gaps. They cannot shift another hour's readings into the current plan.
 
 The browser imports the tree-shakable validation API from the existing Zod dependency. The size comparison and independent browser checks are in [verification](VERIFICATION.md).
+
+The public forecast handler can track up to 32 pending coordinate pairs per server instance. Requests for an already pending pair await the same promise. Each promise removes its entry when it settles, so a retry after a provider failure starts a fresh lookup. At capacity, a new location goes directly to the provider. Household data and Gemini rankings stay outside this map. [Forecast handler](../api/air.js) · [Concurrency regressions](../tests/forecast-requests.test.js)
 
 ## Coding practices applied
 

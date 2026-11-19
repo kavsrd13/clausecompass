@@ -172,6 +172,7 @@ test("the normal AI route uses its configured model and sends just the provider 
       );
       assert.equal(options.headers["x-goog-api-key"], "fixture-provider-key");
       assert.equal(new Headers(options.headers).has("Authorization"), false);
+      assert.equal(options.redirect, "error");
       return ai();
     },
   });

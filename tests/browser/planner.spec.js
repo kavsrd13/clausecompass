@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
-import { buildPlan, demoSnapshot } from "../../lib/air.js";
+import { applyRanking, buildPlan, demoSnapshot } from "../../lib/air.js";
 import { now } from "../fixtures.js";
 
 const require = createRequire(import.meta.url);
@@ -13,7 +13,7 @@ test("a mismatched AI response can be retried and only the matching plan can be 
   await page.route("**/api/analyze", (route) => {
     const household = route.request().postDataJSON();
     return route.fulfill({
-      json: buildPlan(household, snapshot, ["community"], true),
+      json: applyRanking(buildPlan(household, snapshot), ["community"]),
     });
   });
   await page.route(
@@ -24,7 +24,7 @@ test("a mismatched AI response can be retried and only the matching plan can be 
         city: "Different city",
       };
       return route.fulfill({
-        json: buildPlan(different, snapshot, ["community"], true),
+        json: applyRanking(buildPlan(different, snapshot), ["community"]),
       });
     },
     { times: 1 },
@@ -113,7 +113,7 @@ test("city search, public forecast, authenticated personalization and failed ref
   await page.route("**/api/analyze", (route) => {
     const profile = route.request().postDataJSON();
     return route.fulfill({
-      json: buildPlan(profile, snapshot, ["community"], true),
+      json: applyRanking(buildPlan(profile, snapshot), ["community"]),
     });
   });
   await page.goto("/");

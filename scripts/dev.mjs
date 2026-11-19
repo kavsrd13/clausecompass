@@ -1,4 +1,4 @@
-import "./build.mjs";
+import { buildPlanner } from "./build.mjs";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, sep, extname } from "node:path";
@@ -16,7 +16,7 @@ const routes = new Map([
   ["/api/analyze", analyze],
   ["/api/models", models],
 ]);
-const root = resolve("dist");
+const root = resolve(import.meta.dirname, "../dist");
 const types = new Map([
   [".html", "text/html; charset=utf-8"],
   [".js", "application/javascript"],
@@ -125,6 +125,7 @@ const server = createServer(async (request, response) => {
   }
 });
 const port = Number(process.env.PORT) || 5173;
+await buildPlanner();
 server.listen(port, "127.0.0.1", () =>
   console.log(`AirWise: http://127.0.0.1:${port}`),
 );

@@ -4,6 +4,7 @@ import { requestSchema, planSchema } from "../lib/contracts.js";
 import {
   category,
   eligibleActions,
+  applyRanking,
   buildPlan,
   demoSnapshot,
 } from "../lib/air.js";
@@ -41,18 +42,19 @@ test("reject invalid household and location inputs", () => {
       false,
     );
 });
-test("mandatory safety actions cannot be removed by AI", () => {
-  const p = buildPlan(
-    profile,
-    demoSnapshot(),
-    ["community", "transit", "made-up"],
-    true,
+test("ranking a modelled plan preserves the original guidance and required actions", () => {
+  const snapshot = { ...demoSnapshot(), kind: "modelled" };
+  const guidance = buildPlan(profile, snapshot);
+  const original = structuredClone(guidance);
+  const ranked = applyRanking(guidance, ["community", "transit", "made-up"]);
+  assert.deepEqual(guidance, original);
+  assert.deepEqual(
+    ranked.actions.slice(0, 3).map(({ id }) => id),
+    ["reduce-exposure", "clean-room", "community"],
   );
-  assert.equal(p.actions[0].id, "reduce-exposure");
-  assert.equal(p.actions[1].id, "clean-room");
-  assert.ok(!p.actions.some((a) => a.id === "made-up"));
-  assert.equal(new Set(p.actions.map((a) => a.id)).size, p.actions.length);
-  assert.ok(planSchema.safeParse(p).success);
+  assert.deepEqual(new Set(ranked.actions), new Set(guidance.actions));
+  assert.equal(ranked.ai, true);
+  assert.ok(planSchema.safeParse(ranked).success);
 });
 test("sensitive households trigger precautions earlier", () => {
   assert.ok(eligibleActions(profile, 110)[0].mandatory);

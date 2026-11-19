@@ -48,6 +48,7 @@ test("public planner sends only coordinates and renders and exports live provena
   const snapshot = { ...demoSnapshot(), kind: "modelled" };
   t.mock.method(globalThis, "fetch", async (path, options) => {
     assert.equal(path, "/api/air");
+    assert.equal(options.redirect, "error");
     assert.deepEqual(JSON.parse(options.body), {
       latitude: profile.latitude,
       longitude: profile.longitude,

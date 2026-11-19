@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { readFileSync } from "node:fs";
 import { build } from "esbuild";
 import { demoSnapshot } from "../lib/air.js";
+import { LatestRequest } from "../lib/client/latest-request.js";
 import { now } from "./fixtures.js";
 
 let bundleText;
@@ -89,4 +90,63 @@ test("a superseded forecast cannot overwrite a newly built household plan", asyn
   assert.match(doc.getElementById("output").textContent, /20 km/);
   assert.equal(doc.getElementById("output").getAttribute("aria-busy"), "false");
   assert.equal(doc.getElementById("export").disabled, false);
+});
+
+test("a failed superseded request leaves its replacement busy and only reports the current result", async () => {
+  const busy = [];
+  const results = [];
+  const errors = [];
+  const requests = new LatestRequest(12_000, (value) => busy.push(value));
+  const first = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const run = (pending) =>
+    requests.run(
+      () => pending.promise,
+      (value) => results.push(value),
+      (error) => errors.push(error),
+    );
+  const oldRun = run(first);
+  const currentRun = run(second);
+  first.reject(new Error("Older search failed"));
+  await oldRun;
+  assert.equal(busy.at(-1), true);
+  assert.deepEqual(errors, []);
+  second.resolve("Pune");
+  await currentRun;
+  assert.deepEqual(results, ["Pune"]);
+  assert.equal(busy.at(-1), false);
+
+  const cancelled = Promise.withResolvers();
+  const cancelledRun = run(cancelled);
+  requests.cancel();
+  cancelled.resolve("London");
+  await cancelledRun;
+  assert.deepEqual(results, ["Pune"]);
+  assert.deepEqual(errors, []);
+
+  const failure = new Error("Current search failed");
+  await run({ promise: Promise.reject(failure) });
+  assert.deepEqual(errors, [failure]);
+  assert.equal(busy.at(-1), false);
+});
+
+test("city search reports the deadline when the response body times out", async (t) => {
+  const body = Promise.withResolvers();
+  const dom = openPlanner(t, async () => ({
+    ok: true,
+    json: () => body.promise,
+  }));
+  const doc = dom.window.document;
+  const deadline = new dom.window.AbortController();
+  t.mock.method(dom.window.AbortSignal, "timeout", () => deadline.signal);
+  doc.getElementById("city-search").value = "Pune";
+  doc.getElementById("search").click();
+  await new Promise(setImmediate);
+  deadline.abort(
+    new dom.window.DOMException("Deadline reached", "TimeoutError"),
+  );
+  body.reject(deadline.signal.reason);
+  await new Promise(setImmediate);
+  assert.match(doc.getElementById("search-status").textContent, /timed out/);
+  assert.equal(doc.getElementById("search").disabled, false);
 });
