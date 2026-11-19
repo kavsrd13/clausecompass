@@ -12,6 +12,12 @@ Select **Try winter-smog demo**. The default solo-car commute of 8 km each way o
 | Check air & build a plan | Looks up a city forecast and selects actions on the device. Only coordinates go to the forecast endpoint. | Public |
 | Personalize with Gemini | Uses current modelled air, the household profile and an optional goal to rank eligible actions | Enter the private app access token under **AI personalization access** |
 
+## Explore your plan
+
+After building a plan, open **Explore your plan**. Select the first and last forecast hours and a one- or two-hour activity. AirWise compares peak US AQI across complete windows and chooses the earliest tie. The commute slider compares baseline solo driving with switching selected days to shared travel. Both comparisons run locally.
+
+**Ask about my plan** uses the same private app token as personalization. The server rebuilds eligible guidance from the submitted household and forecast. Gemini selects a reference from the plan and the server returns the corresponding action, forecast reading, travel calculation or an insufficient-evidence response. Fictional scenarios remain labelled.
+
 ## Run locally
 
 Use Node.js 24 and npm.

@@ -156,6 +156,56 @@
           </div>
         </section>
       </div>
+      <section
+        id="plan-tools"
+        class="card about"
+        hidden
+        aria-labelledby="tools-heading"
+      >
+        <h2 id="tools-heading">Explore your plan</h2>
+        <h3>Activity window finder</h3>
+        <p>
+          Compare available outdoor forecast hours in your device's time zone.
+        </p>
+        <div class="fields">
+          <label
+            >First hour
+            <select id="window-start"></select
+          ></label>
+          <label
+            >Last hour to include
+            <select id="window-end"></select
+          ></label>
+          <label
+            >Activity length
+            <select id="window-duration">
+              <option value="1">1 hour</option>
+              <option value="2">2 consecutive hours</option>
+            </select></label
+          >
+        </div>
+        <p id="window-result" role="status"></p>
+        <h3>What-if commute simulator</h3>
+        <label
+          >Days switching from solo driving this week
+          <input id="switch-days" type="range" min="0" max="7" step="1"
+        /></label>
+        <p id="commute-result" role="status"></p>
+        <h3>Ask about my plan</h3>
+        <p>
+          Gemini receives your question and relevant plan facts. Use your app
+          access token and leave personal details out.
+        </p>
+        <label
+          >Your question
+          <input
+            id="plan-question"
+            maxlength="400"
+            placeholder="Why is outdoor activity a priority?"
+        /></label>
+        <button type="button" id="ask-plan">Ask Gemini</button>
+        <p id="plan-answer" role="status"></p>
+      </section>
       <section class="card about">
         <h2>Honest about impact</h2>
         <p>

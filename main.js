@@ -17,6 +17,8 @@ import {
 import { renderReview } from "./lib/client/review.js";
 import { createBrief } from "./lib/client/export.js";
 import { LatestRequest } from "./lib/client/latest-request.js";
+import { showTools } from "./lib/client/plan-tools.js";
+let toolRequest = new AbortController();
 /** @import {Plan} from "./lib/contracts.js" */
 
 const output = element("output", HTMLElement);
@@ -44,6 +46,9 @@ function setPlanBusy(busy) {
 
 /** @param {string} label @param {string} message */
 function clearPlan(label, message) {
+  toolRequest.abort();
+  toolRequest = new AbortController();
+  element("plan-tools", HTMLElement).hidden = true;
   planRequest.cancel();
   result = null;
   output.replaceChildren();
@@ -61,6 +66,7 @@ function cancelSearch() {
 /** @param {Plan} plan */
 function showPlan(plan) {
   renderReview(document, plan);
+  showTools(plan, () => tokenInput.value, toolRequest.signal);
   result = plan;
   downloadButton.disabled = false;
   printButton.disabled = false;

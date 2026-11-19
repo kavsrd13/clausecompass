@@ -6,6 +6,7 @@ import air from "../api/air.js";
 import analyze from "../api/analyze.js";
 import locations from "../api/locations.js";
 import models from "../api/models.js";
+import question from "../api/question.js";
 /** @import {IncomingMessage, ServerResponse} from "node:http" */
 /** @import {ApiHandler, ApiResponse} from "../lib/server/http.js" */
 
@@ -15,6 +16,7 @@ const routes = new Map([
   ["/api/locations", locations],
   ["/api/analyze", analyze],
   ["/api/models", models],
+  ["/api/question", question],
 ]);
 const root = resolve(import.meta.dirname, "../dist");
 const types = new Map([
