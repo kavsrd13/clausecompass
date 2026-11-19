@@ -1,46 +1,63 @@
+import * as z from "zod/mini";
+import {
+  citySchema,
+  locationSchema,
+  MAX_CITY_RESULTS,
+  searchSchema,
+} from "../lib/contracts.js";
 import { allowRequest } from "../lib/server/http.js";
-/** @param {import('../lib/server/http.js').ApiRequest} req @param {import('../lib/server/http.js').ApiResponse} res */
-export default async function handler(req, res) {
-  if (!allowRequest(req, res, "POST")) return;
-  const query =
-    typeof req.body === "object" && req.body !== null && "query" in req.body
-      ? req.body.query
-      : null;
-  if (typeof query !== "string" || query.trim().length < 2 || query.length > 80)
-    return res
-      .status(400)
-      .json({ error: "Enter a city name of 2–80 characters." });
-  try {
+
+const placeSchema = z.extend(locationSchema, {
+  name: z.string().check(z.trim(), z.minLength(1)),
+  admin1: z.optional(z.string()),
+  country: z.optional(z.string()),
+});
+const geocodingSchema = z.object({
+  results: z._default(
+    z.array(placeSchema).check(z.maxLength(MAX_CITY_RESULTS)),
+    [],
+  ),
+});
+
+/** Keep a complete city name when its administrative qualifiers are too long for a profile.
+ * @param {z.infer<typeof placeSchema>} place */
+function cityOption({ name, admin1, country, latitude, longitude }) {
+  for (const parts of [[name, admin1, country], [name, country], [name]]) {
+    const label = [...new Set(parts.filter(Boolean))].join(", ");
+    const city = citySchema.safeParse({ name: label, latitude, longitude });
+    if (city.success) return city.data;
+  }
+  throw new Error("City name cannot be represented in a household profile");
+}
+
+/** @param {typeof fetch} fetcher @returns {import("../lib/server/http.js").ApiHandler} */
+export function createLocationsHandler(fetcher = fetch) {
+  return async (req, res) => {
+    if (!allowRequest(req, res, "POST")) return;
+    const search = searchSchema.safeParse(req.body);
+    if (!search.success)
+      return res
+        .status(400)
+        .json({ error: "Enter a city name of 2–80 characters." });
     const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
     url.search = new URLSearchParams({
-      name: query.trim(),
-      count: "5",
+      name: search.data.query,
+      count: String(MAX_CITY_RESULTS),
       language: "en",
       format: "json",
     }).toString();
-    const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!r.ok) throw Error();
-    const data = await r.json();
-    const results = Array.isArray(data.results) ? data.results : [];
-    return res.status(200).json({
-      locations: results
-        .map(
-          (
-            /** @type {{name:string,country:string,admin1?:string,latitude:number,longitude:number}} */ c,
-          ) => ({
-            name: [c.name, c.admin1, c.country].filter(Boolean).join(", "),
-            latitude: c.latitude,
-            longitude: c.longitude,
-          }),
-        )
-        .filter(
-          (/** @type {{latitude:number,longitude:number}} */ c) =>
-            Number.isFinite(c.latitude) && Number.isFinite(c.longitude),
-        ),
-    });
-  } catch {
-    return res
-      .status(502)
-      .json({ error: "City search unavailable. Use a preset city." });
-  }
+    try {
+      const response = await fetcher(url, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error("Geocoder unavailable");
+      const { results } = geocodingSchema.parse(await response.json());
+      return res.status(200).json({ locations: results.map(cityOption) });
+    } catch {
+      return res
+        .status(502)
+        .json({ error: "City search unavailable. Use a preset city." });
+    }
+  };
 }
+export default createLocationsHandler();

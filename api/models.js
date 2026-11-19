@@ -1,4 +1,13 @@
 import { allowRequest, isAuthorized } from "../lib/server/http.js";
+import { z } from "zod";
+const catalogue = z.object({
+  models: z.array(
+    z.object({
+      name: z.string(),
+      supportedGenerationMethods: z.array(z.string()).optional(),
+    }),
+  ),
+});
 /** @param {import('../lib/server/http.js').ApiRequest} req @param {import('../lib/server/http.js').ApiResponse} res */
 export default async function handler(req, res) {
   if (!allowRequest(req, res, "GET")) return;
@@ -19,13 +28,13 @@ export default async function handler(req, res) {
         error: "Model discovery unavailable",
         providerStatus: response.status,
       });
-    const data = await response.json();
+    const data = catalogue.parse(await response.json());
     return res.status(200).json({
       models: data.models
-        ?.filter((/** @type {{supportedGenerationMethods?:string[]}} */ m) =>
-          m.supportedGenerationMethods?.includes("generateContent"),
+        .filter((model) =>
+          model.supportedGenerationMethods?.includes("generateContent"),
         )
-        .map((/** @type {{name:string}} */ m) => m.name),
+        .map((model) => model.name),
       providerStatus: response.status,
     });
   } catch {

@@ -4,6 +4,8 @@
     "checkJs": true,
     "noEmit": true,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2023",
@@ -11,11 +13,10 @@
     "skipLibCheck": true
   },
   "include": [
+    "main.js",
+    "lib/**/*.js",
     "api/**/*.js",
-    "lib/contracts.js",
-    "lib/limits.js",
-    "lib/server/**/*.js",
-    "lib/client/export.js",
-    "lib/air.js"
+    "scripts/**/*.mjs",
+    "types/**/*.d.ts"
   ]
 }

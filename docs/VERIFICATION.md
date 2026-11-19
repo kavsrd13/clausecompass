@@ -1,22 +1,40 @@
-# AirWise verification — 18 November 2026
+# Verification · 19 November 2026
 
-The legal-topic verification records are superseded; they do not establish current air-quality behavior. Current scope is in BUILD_PLAN.md.
+| Check | Result on the revised app |
+| --- | --- |
+| Formatting, scoped ESLint rules, strict type checking, production build | Passed on Node 24 |
+| Unit, API and DOM workflow tests | 57 passed |
+| Playwright workflows | Two scenarios on each of two Chromium viewports, 1280 × 800 and 360 × 800 |
+| Automated accessibility | Empty and populated plans in a real browser, including the color-contrast rule. Zero violations across the four tested states. |
+| Dependencies | `npm audit --audit-level=high` reported zero known vulnerabilities at the time of testing |
 
-Offline gates: formatting, ESLint, strict checkJs for domain/server/export modules, schema and domain tests, injected provider/API tests, DOM safety and form-structure tests, build. Results are recorded after the final checks.
+## What changed since the scored version
 
-Live public API: Open-Meteo queried using public New Delhi city coordinates. It returned a validated modelled US AQI/PM2.5 snapshot with 24 forecast hours. This proves provider integration at that test time, not a street-level observation or continuous availability. No air reading is permanently hard-coded as current.
+The baseline is Git revision `7385e28`. Both size measurements use the minified production JavaScript file from `npm run build`. Gzip uses Node's default `gzipSync` settings. These are artifact sizes, independent of any measured network speed.
 
-Live Gemini: verified against the new AirWise production project on 18 November 2026. The user approved key reuse for this new destination. The authenticated smoke test returned HTTP 200, modelled air provenance and seven approved actions. This is a functional smoke result, not a broad accuracy benchmark.
+| Measurement | Baseline | Revised |
+| --- | ---: | ---: |
+| Browser JavaScript, bytes | 467,091 | 37,726 |
+| Browser JavaScript, gzip bytes | 98,900 | 13,640 |
+| Node test cases | 40 | 57 |
+| Browser workflow runs in CI | 0 | 4 |
 
-Remaining limits: distributed quotas, full browser/mobile/screen-reader QA, professional review of the action catalogue, larger live AI evaluation and broader real-browser evaluation. These gaps prevent any defensible claim of a >97% judge score or complete WCAG conformance.
+The regression suite covers a late city search arriving after a demo, an old forecast arriving after a new household plan, unordered or misaligned readings, malformed city results, and Gemini network or output errors. The browser suite exercises the keyboard skip link, full 24-row fictional forecast, actual Markdown download, city selection, minimal forecast payload, authenticated AI request and failed refresh. Tests use synthetic household data.
 
-## Current results
-- All 40 deterministic tests pass, including AQI boundary checks, schema/input rejection, safeguards against unapproved AI actions, commute arithmetic, budget-specific options, stale-data handling, safe rendering, labels and the bundled demo workflow.
-- Two axe-core structural audits (empty and populated plan) report zero violations in the checked rules. Color contrast is explicitly disabled in jsdom; layout, real keyboard/screen-reader behavior and manual mobile checks remain unverified. This is not WCAG certification.
-- Formatting, ESLint, scoped strict type checking and production build pass.
-- Dependency audit reports zero known vulnerabilities after replacing Vite's flagged dependency chain with esbuild. No force downgrade or audit suppression was used.
-- Full local browser/HTTP preview was attempted but loopback access timed out in this environment. The bundled UI workflow passes in jsdom; direct public-provider integration returned valid data. Do not conflate those checks with a real-browser end-to-end pass.
+## Reproduce the checks
 
+```sh
+npm ci
+npm run verify
+npm audit --audit-level=high
+npx playwright install chromium
+npm run test:browser
+```
 
-## Production verification � 18 November 2026
-Production: https://airwise-pearl.vercel.app. Vercel reports READY. Homepage, city search, modelled air data and authenticated Gemini personalization each returned HTTP 200. The public air-data endpoint returned 24 forecast hours; the AI planner returned seven approved actions. Server credentials remain outside Git. The old ClauseCompass project was not recreated.
+The browser suite starts a local server on port 4186. To use an installed Chrome instead, set `AIRWISE_BROWSER_CHANNEL=chrome`. CI installs the Chromium build paired with the locked Playwright version. [CI workflow](../.github/workflows/verify.yml)
+
+## Production verification
+
+City search and forecasts use Open-Meteo. On 18 November, the prior production revision also returned a successful authenticated Gemini plan. To test a deployed revision with current data, set `APP_URL` and the corresponding private app access token and run `node --env-file=.env.local scripts/live.mjs`. The script verifies the plan contract, travel arithmetic, eligible action set and mandatory ordering. [Access guide](ACCESS.md)
+
+A browser test with provider fixtures establishes application behavior. A live request checks current provider availability. Neither measures long-term model accuracy. Manual screen-reader evaluation and professional review of the guidance catalogue remain open.

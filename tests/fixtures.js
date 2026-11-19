@@ -12,6 +12,24 @@ export const profile = {
   goal: "No-cost school pickup plan",
 };
 export const now = Date.UTC(2026, 10, 18, 8, 30);
+export function responseRecorder() {
+  return {
+    code: 200,
+    body: null,
+    headers: {},
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
+    status(code) {
+      this.code = code;
+      return this;
+    },
+    json(value) {
+      this.body = value;
+      return this;
+    },
+  };
+}
 export function airResponse() {
   const t = Math.floor(now / 3600000) * 3600;
   return {

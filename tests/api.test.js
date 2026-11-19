@@ -1,29 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createAnalyzeHandler } from "../api/analyze.js";
-import { profile, now, airResponse } from "./fixtures.js";
+import { profile, now, airResponse, responseRecorder } from "./fixtures.js";
 const req = () => ({
   method: "POST",
   headers: { host: "localhost", authorization: "Bearer test-only" },
   body: profile,
 });
 const config = () => ({ apiKey: "test-only", accessToken: "test-only" });
-const res = () => ({
-  code: 200,
-  body: null,
-  headers: {},
-  setHeader(k, v) {
-    this.headers[k] = v;
-  },
-  status(c) {
-    this.code = c;
-    return this;
-  },
-  json(b) {
-    this.body = b;
-    return this;
-  },
-});
 const ai = (priorities = ["community"]) => ({
   ok: true,
   json: async () => ({
@@ -36,7 +20,7 @@ const ai = (priorities = ["community"]) => ({
   }),
 });
 async function run(request = req(), changes = {}) {
-  const response = res();
+  const response = responseRecorder();
   const handler = createAnalyzeHandler({
     config,
     now: () => now,
@@ -100,4 +84,71 @@ test("safety blocked output is not accepted", async () => {
           },
   });
   assert.equal(r.code, 502);
+});
+
+test("Gemini receives eligible IDs and household preferences without coordinates or full guidance text", async () => {
+  const calls = [];
+  const result = await run(req(), {
+    fetcher: async (url, options) => {
+      if (String(url).includes("air-quality-api"))
+        return Response.json(airResponse());
+      const payload = JSON.parse(options.body);
+      calls.push(payload);
+      return ai(["community", "transit", "community"]);
+    },
+  });
+  assert.equal(result.code, 200);
+  assert.equal(calls.length, 1);
+  const prompt = JSON.parse(calls[0].contents[0].parts[0].text);
+  assert.equal(prompt.household.goal, profile.goal);
+  assert.equal("latitude" in prompt.household, false);
+  assert.equal("longitude" in prompt.household, false);
+  assert.deepEqual(Object.keys(prompt.eligible[0]).sort(), ["id", "title"]);
+  const ids = result.body.actions.map((action) => action.id);
+  assert.deepEqual(ids.slice(0, 4), [
+    "reduce-exposure",
+    "clean-room",
+    "community",
+    "transit",
+  ]);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
+for (const [label, failure] of [
+  ["invalid JSON", () => new Response("incomplete")],
+  [
+    "missing content",
+    () => Response.json({ candidates: [{ finishReason: "STOP" }] }),
+  ],
+  ["unknown action", () => ai(["unlisted-action"])],
+  [
+    "connection failure",
+    () => {
+      throw new TypeError("network unavailable");
+    },
+  ],
+]) {
+  test(`distinguishes Gemini ${label} from a forecast failure`, async () => {
+    const response = await run(req(), {
+      fetcher: async (url) =>
+        String(url).includes("air-quality-api")
+          ? Response.json(airResponse())
+          : failure(),
+    });
+    assert.equal(response.code, 502);
+    assert.match(response.body.error, /Gemini/);
+  });
+}
+
+test("an unusable forecast stops the request before Gemini is contacted", async () => {
+  const hosts = [];
+  const response = await run(req(), {
+    fetcher: async (url) => {
+      hosts.push(new URL(url).hostname);
+      return Response.json({ hourly: {} });
+    },
+  });
+  assert.equal(response.code, 502);
+  assert.match(response.body.error, /air-quality/);
+  assert.deepEqual(hosts, ["air-quality-api.open-meteo.com"]);
 });

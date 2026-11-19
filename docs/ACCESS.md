@@ -1,9 +1,15 @@
-# AirWise access and deployment
+# Access and deployment
 
-Production: https://airwise-pearl.vercel.app
+The fictional demo, city search and guidance planner are public. Select **Personalize with Gemini** to use the protected AI route. Reviewers with an app access token can enter it under **AI personalization access**. [Production planner](https://airwise-pearl.vercel.app)
 
-A new AirWise Vercel project was deployed on 18 November 2026 at the user's explicit request. The earlier ClauseCompass project remains deleted. The user explicitly approved reusing the previously supplied Gemini key for this new project; it is stored as a sensitive server-only production variable. No API key is committed or embedded in browser code.
+| Server environment variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Google Gemini API credential for server-side generation |
+| `APP_ACCESS_TOKEN` | Private bearer token accepted by the app for AI requests |
+| `GEMINI_MODEL` | Optional model override. The default is `gemini-3.1-flash-lite`. |
 
-A new APP_ACCESS_TOKEN protects Gemini requests. Its value is stored in the ignored local .env.local file and as a sensitive Vercel production variable. Enter the value in the app's AI personalization access field. Do not put the Gemini key there. Public guidance-only mode, city search and air data do not need that token. Do not share the token publicly.
+For local AI runs, copy the variable names from `.env.example` into an ignored `.env.local` and set the values there. For Vercel, set production secrets in the AirWise project and deploy. Only the app access token belongs in the UI. Supply it to authorized reviewers privately. Git and the deployment upload both exclude local secret files.
 
-Local development: npm run dev. Live smoke test: set APP_URL to the production URL and run node --env-file=.env.local scripts/live.mjs. This sends a fictional profile and can incur Gemini API usage. The earlier chat-shared Gemini key should be rotated through Google AI Studio and then updated in Vercel.
+## Verify live personalization
+
+Set `APP_URL` to the intended running instance. With its app access token in `.env.local`, run `node --env-file=.env.local scripts/live.mjs`. This sends one fictional household request to Gemini and can incur API charges. It checks the response contract, modelled provenance, action membership and safety order, and the 80 km travel calculation.

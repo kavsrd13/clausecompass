@@ -1,0 +1,8 @@
+.env*
+.git
+.github
+node_modules
+dist
+tests
+docs
+BUILD_PLAN.md

@@ -1,178 +1,207 @@
 import "./style.css";
-import { requestSchema, planSchema, snapshotSchema } from "./lib/contracts.js";
 import { buildPlan, demoSnapshot } from "./lib/air.js";
+import {
+  loadGuidance,
+  loadPersonalization,
+  searchCities,
+} from "./lib/client/api.js";
+import {
+  citySelect,
+  element,
+  form,
+  readProfile,
+  searchInput,
+  showCities,
+  tokenInput,
+} from "./lib/client/form.js";
 import { renderReview } from "./lib/client/review.js";
 import { createBrief } from "./lib/client/export.js";
-const $ = (id) => document.getElementById(id);
-let locations = [
-  { name: "New Delhi, India", latitude: 28.61, longitude: 77.21 },
-  { name: "Mumbai, India", latitude: 19.08, longitude: 72.88 },
-  { name: "Lahore, Pakistan", latitude: 31.55, longitude: 74.34 },
-  { name: "London, United Kingdom", latitude: 51.51, longitude: -0.13 },
-  { name: "New York, United States", latitude: 40.71, longitude: -74.01 },
-  { name: "Beijing, China", latitude: 39.9, longitude: 116.4 },
-];
+/** @import {Plan} from "./lib/contracts.js" */
+
+const output = element("output", HTMLElement);
+const badge = element("badge", HTMLElement);
+const status = element("status", HTMLElement);
+const searchStatus = element("search-status", HTMLElement);
+const searchButton = element("search", HTMLButtonElement);
+const guidanceButton = element("guidance", HTMLButtonElement);
+const aiButton = element("ai", HTMLButtonElement);
+const downloadButton = element("export", HTMLButtonElement);
+const printButton = element("print", HTMLButtonElement);
+/** @type {Plan | null} */
 let result = null;
-let revision = 0;
-let controller;
-const status = (text) => ($("status").textContent = text);
-function populate() {
-  $("city").replaceChildren(
-    ...locations.map((city, i) => {
-      const option = document.createElement("option");
-      option.value = String(i);
-      option.textContent = city.name;
-      return option;
-    }),
-  );
+/** @type {AbortController | null} */
+let planRequest = null;
+/** @type {AbortController | null} */
+let cityRequest = null;
+
+/** @param {boolean} busy */
+function setPlanBusy(busy) {
+  guidanceButton.disabled = busy;
+  aiButton.disabled = busy;
+  output.setAttribute("aria-busy", String(busy));
 }
-function read() {
-  const city = locations[Number($("city").value)];
-  return requestSchema.parse({
-    city: city.name,
-    latitude: city.latitude,
-    longitude: city.longitude,
-    sensitive: $("sensitive").checked,
-    commute: $("commute").value,
-    distanceKm: Number($("distance").value),
-    days: Number($("days").value),
-    budget: $("budget").value,
-    purifier: $("purifier").checked,
-    cooking: $("cooking").value,
-    goal: $("goal").value,
-  });
-}
-function invalidate() {
-  revision++;
-  controller?.abort();
+
+/** @param {string} label @param {string} message */
+function clearPlan(label, message) {
+  planRequest?.abort();
+  planRequest = null;
+  setPlanBusy(false);
   result = null;
-  $("export").disabled = true;
-  $("badge").textContent = "PROFILE CHANGED";
-  $("output").replaceChildren();
-  status("Profile changed. Build a new plan.");
+  output.replaceChildren();
+  badge.textContent = label;
+  status.textContent = message;
+  downloadButton.disabled = true;
+  printButton.disabled = true;
 }
-function show(plan) {
-  result = plan;
+
+function cancelSearch() {
+  cityRequest?.abort();
+  cityRequest = null;
+  searchButton.disabled = false;
+  searchStatus.textContent = "";
+}
+
+/** @param {Plan} plan */
+function showPlan(plan) {
   renderReview(document, plan);
-  $("export").disabled = false;
-  $("badge").textContent =
-    plan.snapshot.kind === "demo"
-      ? "FICTIONAL DEMO"
-      : plan.ai
-        ? "LIVE DATA · GEMINI"
-        : "LIVE DATA · GUIDANCE";
-  status(
-    plan.snapshot.kind === "demo"
-      ? "Fictional winter-smog example. These are not current readings."
-      : "Plan ready. Check local official advisories before acting.",
-  );
+  result = plan;
+  downloadButton.disabled = false;
+  printButton.disabled = false;
+  if (plan.snapshot.kind === "demo") {
+    badge.textContent = "FICTIONAL DEMO";
+    status.textContent =
+      "Fictional winter-smog example. These are not current readings.";
+  } else {
+    badge.textContent = plan.ai ? "LIVE DATA · GEMINI" : "LIVE DATA · GUIDANCE";
+    status.textContent =
+      "Plan ready. Check local official advisories before acting.";
+  }
 }
-async function post(path, body, signal, token = "") {
-  const response = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-  const data = await response.json();
-  if (!response.ok) throw Error(data.error || "Service unavailable");
-  return data;
+
+/** @param {unknown} error */
+function errorMessage(error) {
+  if (error instanceof Error && error.name === "TimeoutError")
+    return "The request timed out. Please try again.";
+  return error instanceof Error
+    ? error.message
+    : "Service unavailable. Please try again.";
 }
-async function run(ai = false) {
-  if (!$("profile").reportValidity()) return;
-  const generation = ++revision;
-  controller?.abort();
-  controller = new AbortController();
-  const activeController = controller;
-  const signal = AbortSignal.any([
-    controller.signal,
-    AbortSignal.timeout(45000),
-  ]);
-  $("guidance").disabled = true;
-  $("ai").disabled = true;
-  document.querySelector(".results").setAttribute("aria-busy", "true");
-  status(
+
+/** @param {"guidance" | "ai"} mode */
+async function runPlan(mode) {
+  if (!form.reportValidity()) return;
+  cancelSearch();
+  const ai = mode === "ai";
+  clearPlan(
+    "CHECKING AIR",
     ai
       ? "Checking modelled air and personalizing priorities…"
       : "Checking modelled outdoor air…",
   );
+  const request = new AbortController();
+  planRequest = request;
+  setPlanBusy(true);
   try {
-    const profile = read();
+    const signal = AbortSignal.any([
+      request.signal,
+      AbortSignal.timeout(45_000),
+    ]);
+    const profile = readProfile();
     const plan = ai
-      ? planSchema.parse(
-          await post("/api/analyze", profile, signal, $("token").value),
-        )
-      : planSchema.parse(
-          buildPlan(
-            profile,
-            snapshotSchema.parse(await post("/api/air", profile, signal)),
-          ),
-        );
-    if (generation === revision) show(plan);
-  } catch (e) {
-    if (generation === revision)
-      status(e.name === "AbortError" ? "Request cancelled." : e.message);
+      ? await loadPersonalization(profile, signal, tokenInput.value)
+      : await loadGuidance(profile, signal);
+    if (planRequest === request) showPlan(plan);
+  } catch (error) {
+    if (planRequest === request) {
+      badge.textContent = "PLAN UNAVAILABLE";
+      status.textContent = errorMessage(error);
+    }
   } finally {
-    if (controller === activeController) {
-      controller = null;
-      $("guidance").disabled = false;
-      $("ai").disabled = false;
-      document.querySelector(".results").setAttribute("aria-busy", "false");
+    if (planRequest === request) {
+      planRequest = null;
+      setPlanBusy(false);
     }
   }
 }
-$("profile").onsubmit = (e) => {
-  e.preventDefault();
-  run();
-};
-$("ai").onclick = () => run(true);
-$("demo").onclick = () => {
-  if (!$("profile").reportValidity()) return;
-  invalidate();
-  show(planSchema.parse(buildPlan(read(), demoSnapshot())));
-};
-$("profile").addEventListener("input", (e) => {
-  if (e.target.id !== "token" && e.target.id !== "city-search") invalidate();
-});
-$("search").onclick = async () => {
-  const query = $("city-search").value.trim();
+
+async function findCity() {
+  const query = searchInput.value.trim();
+  cancelSearch();
   if (query.length < 2) {
-    status("Enter at least two letters for city search.");
+    searchStatus.textContent = "Enter at least two characters for city search.";
     return;
   }
-  $("search").disabled = true;
+  const request = new AbortController();
+  cityRequest = request;
+  searchButton.disabled = true;
+  searchStatus.textContent = "Searching for your city…";
   try {
-    const data = await post(
-      "/api/locations",
-      { query },
-      AbortSignal.timeout(12000),
-    );
-    if (!data.locations.length)
-      throw Error("No matching city found. Try another name.");
-    locations = data.locations;
-    populate();
-    invalidate();
-    status("Select the correct city and build your plan.");
-  } catch (e) {
-    status(e.message);
+    const signal = AbortSignal.any([
+      request.signal,
+      AbortSignal.timeout(12_000),
+    ]);
+    const matches = await searchCities(query, signal);
+    if (cityRequest !== request) return;
+    if (matches.length === 0) {
+      searchStatus.textContent = "No matching city found. Try another name.";
+      return;
+    }
+    showCities(matches);
+    clearPlan("CITY CHANGED", "Build a plan for the selected city.");
+    searchStatus.textContent = "Select the correct city and build your plan.";
+  } catch (error) {
+    if (cityRequest === request) searchStatus.textContent = errorMessage(error);
   } finally {
-    $("search").disabled = false;
+    if (cityRequest === request) {
+      cityRequest = null;
+      searchButton.disabled = false;
+    }
   }
-};
-$("export").onclick = () => {
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void runPlan("guidance");
+});
+aiButton.addEventListener("click", () => void runPlan("ai"));
+searchButton.addEventListener("click", findCity);
+searchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.isComposing) {
+    event.preventDefault();
+    void findCity();
+  }
+});
+form.addEventListener("input", (event) => {
+  if (event.target === searchInput) return cancelSearch();
+  if (event.target === tokenInput) return;
+  if (event.target === citySelect) cancelSearch();
+  clearPlan("PROFILE CHANGED", "Profile changed. Build a new plan.");
+});
+element("demo", HTMLButtonElement).addEventListener("click", () => {
+  if (!form.reportValidity()) return;
+  cancelSearch();
+  clearPlan("", "");
+  showPlan(buildPlan(readProfile(), demoSnapshot()));
+});
+downloadButton.addEventListener("click", () => {
   if (!result) return;
   const url = URL.createObjectURL(
     new Blob([createBrief(result)], { type: "text/markdown" }),
   );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "airwise-family-plan.md";
-  a.click();
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "airwise-family-plan.md";
+  link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
-$("print").onclick = () => window.print();
-$("clear").onclick = () => location.reload();
-populate();
+});
+printButton.addEventListener("click", () => window.print());
+element("clear", HTMLButtonElement).addEventListener("click", () => {
+  form.reset();
+  cancelSearch();
+  showCities();
+  clearPlan(
+    "READY WHEN YOU ARE",
+    "Try a fictional demo or check modelled air for your city.",
+  );
+});
+showCities();

@@ -6,7 +6,7 @@ Updated 18 November 2026. Replaces the legal-document product scope; retain modu
 Help families navigate smog with a city-based routine, indoor source-control guidance, transport alternatives, direct impact explanations and community actions. Profile: city, sensitivity flag, travel mode/distance/days, budget, cleaner availability, cooking method and a short optional goal. Do not request diagnoses, addresses, precise GPS or household identities.
 
 ## Architecture
-esbuild web app, shared Zod schemas, strict checkJs on domain/server modules, Node/Vercel-compatible API handlers, Open-Meteo city search and CAMS-derived hourly air forecasts, Gemini for constrained action prioritization. No document upload, PDF parser, document comparison or legal advice remains. No persistent household database. API responses use no-store. AI access is token protected and credentials remain server-side.
+The browser and Vercel API share Zod contracts. Strict JavaScript type checking covers the client, domain logic, endpoints and scripts. Open-Meteo provides city search and CAMS-derived hourly air forecasts. Gemini ranks eligible actions. Household profiles live in page memory. API responses use no-store and an app token protects AI access.
 
 ## Trust and safety
 Label modelled data, provider, timestamp and US AQI scale. Never label it an official local station or India AQI. Reject stale/missing/invalid values. Clearly label fictional demo mode. No silent live-to-demo or AI-to-guidance substitution.
@@ -21,11 +21,11 @@ A score above 97% in each category is an ambition, not a prediction. Judge weigh
 
 | Category | Acceptance evidence |
 | --- | --- |
-| Code quality | Modular responsibilities, shared schemas, lint, strict server/domain checking, reproducible npm ci |
+| Code quality | Shared schemas, typed application and scripts, checked array access, environment-specific lint rules, reproducible npm ci |
 | Security | Input limits, fixed provider hosts, no arbitrary URLs, no exposed key, safe text rendering, origin/method/auth tests |
 | Efficiency | Small build, one air lookup and one bounded AI generation per personalization, no document dependencies |
 | Testing | AQI boundaries, household scenarios, missing/stale data, safe AI constraints, transport calculations, DOM rendering, API failures |
-| Accessibility | Labelled controls, visible focus, text-based risk labels, accessible table, keyboard controls, responsive layout, automated audit plus manual limitations |
+| Accessibility | Labelled controls, keyboard workflow, accessible hourly table and rendered-page audits including contrast at desktop and phone widths |
 | Alignment | City-specific air context, household adaptation, indoor guidance, transport choices, community action and explicit impact assumptions |
 
 ## Delivery gates

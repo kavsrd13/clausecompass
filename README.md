@@ -1,32 +1,43 @@
-# AirWise — Urban Air Quality Assistant
+# AirWise · Urban Air Quality Assistant
 
-Challenge 6: a family smog-day planner with location-aware modelled outdoor air, indoor guidance, lower-emission routines and transparent impact explanations. This replaces the earlier legal-document topic.
+AirWise helps families turn a city's winter-smog forecast into a daily routine. It pairs each action with an explanation of its impact and a source. It was built for Hack2Skill Challenge 6. [Open the deployed planner](https://airwise-pearl.vercel.app)
 
-## Run
-Node 24: `npm ci`, `npm run dev` for the UI/demo. The local dev server includes same-origin API routes and live public air data. The fictional demo requires no credentials or network. City search and modelled air use Open-Meteo APIs. For Gemini, configure GEMINI_API_KEY, GEMINI_MODEL (default gemini-3.1-flash-lite), and APP_ACCESS_TOKEN in ignored server environment settings. Enter only the app access token in AI personalization access. Never enter a Gemini key in the UI. Production: https://airwise-pearl.vercel.app. The earlier ClauseCompass deployment remains deleted; this is a new AirWise Vercel project.
+## Try it
 
-## What it does
-- City search and preset cities; no exact address or GPS required.
-- Clearly labelled US AQI and PM2.5 model forecasts with timestamps and Open-Meteo/CAMS attribution; not India AQI or street-level sensor readings.
-- Sensitivity, cooking, cleaner access, budget and commute context.
-- Guidance-only mode and separately labelled Gemini prioritization. Gemini ranks eligible action IDs; it does not generate medical advice or impact numbers.
-- Mandatory severe-smog precautions stay first regardless of AI ranking.
-- Indoor source-control guidance, safer transport tradeoffs and community actions.
-- Solo-driving replacement scenario with formula and limitations; Markdown/print export.
+Select **Try winter-smog demo**. The default solo-car commute of 8 km each way on five days gives 80 km of weekly travel that could shift to shared or public journeys. Change the distance to 2 km and rebuild to see 20 km. Open the hourly table, download the plan, or print it.
 
-## Verify
-`npm run verify`: formatting, lint, strict server/domain type checks, deterministic tests and production build. See docs/VERIFICATION.md for exact verification status. Offline tests are not evidence of live Gemini accuracy. No judge score is guaranteed.
+| Mode | Input and result | Access |
+| --- | --- | --- |
+| Winter-smog demo | Uses a fictional day and the selected household preferences | Works offline once the page has loaded |
+| Check air & build a plan | Looks up a city forecast and selects actions on the device. Only coordinates go to the forecast endpoint. | Public |
+| Personalize with Gemini | Uses current modelled air, the household profile and an optional goal to rank eligible actions | Enter the private app access token under **AI personalization access** |
 
-## Sources and terms
-Outdoor data: [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) / [CAMS](https://atmosphere.copernicus.eu/). The free API is for eligible noncommercial use; check usage limits and obtain a commercial plan if needed. Model grid/forecast values differ from local monitors. US AQI categories are not interchangeable with national AQI systems.
+## Run locally
 
-Action catalogue: [WHO personal interventions](https://www.who.int/news-room/questions-and-answers/item/air-pollution-personal-interventions-and-risk-communication), [EPA air cleaners](https://www.epa.gov/indoor-air-quality-iaq/guide-air-cleaners-home), [EPA indoor particles](https://www.epa.gov/indoor-air-quality-iaq/indoor-particulate-matter), [EPA source control and ventilation](https://www.epa.gov/indoor-air-quality-iaq/improving-indoor-air-quality).
+Use Node.js 24 and npm.
 
-## Privacy and security
-No household profile is persisted. City coordinates are transmitted to the air-data provider; selected household preferences and the optional goal go to Gemini only for requested AI personalization. Do not include private medical details. Provider retention terms still apply; use an appropriate paid Gemini project before accepting sensitive content. API keys must never be committed. Distributed abuse quotas are not implemented; do not publicly share the app access token. Public air-data requests have input/time bounds but require platform rate limits before large-scale public release.
+```sh
+npm ci
+npm run dev
+```
 
-## Scope and limits
-No medical diagnosis/treatment, indoor sensor measurements, hyperlocal route optimization or guaranteed reductions in emissions, city AQI or health risk. Recommendations are informational and may not fit every home. Keep combustion safety and necessary ventilation in place; follow local official advisories. The narrower curated catalogue limits unsafe model-generated advice but does not constitute professional health validation. Accessibility conformance needs manual evaluation. Source repository currently retains its historical GitHub name; its current application is AirWise.
+Open `http://127.0.0.1:5173`. The local server builds the client on startup and serves the same API routes as production. Restart it after editing the client. Gemini configuration and deployment instructions are in the [access guide](docs/ACCESS.md).
 
-## Repository rules
-Single main branch; below 10 MB; no node_modules, dist, secrets or large media in Git. No challenge submissions are automated.
+## How a plan is built
+
+1. Pick a city or search for one. The forecast uses US AQI and PM2.5, with a timestamp and up to 24 hourly entries. Missing hours are omitted. An unusable forecast produces an error.
+2. Household sensitivity, cooking fuel, budget, cleaner availability and travel mode determine which actions apply. The catalogue covers indoor source control, daily routines, transport and community choices.
+3. For AI personalization, Gemini receives the eligible IDs and titles. The server checks its ranking against those IDs and puts mandatory precautions first. Application code supplies source links, guidance and travel arithmetic.
+4. The travel scenario estimates solo-car kilometres that could be replaced. Actual emissions and exposure depend on the route, vehicle, occupancy and indoor conditions.
+
+## Checks
+
+Run `npm run verify` for formatting, lint, strict type checking, unit and integration tests, and the production build. Run `npx playwright install chromium` followed by `npm run test:browser` for the desktop and phone-width workflows. The browser suite uses fixtures for external services. [Verification results](docs/VERIFICATION.md) · [Code structure](docs/CODE_QUALITY.md) · [Continuous integration](https://github.com/kavsrd13/clausecompass/actions/workflows/verify.yml)
+
+## Sources and privacy
+
+Air data comes from Open-Meteo's CAMS model forecasts. Grid-level US AQI can differ from street-level readings and national AQIs. Check local official advisories. The public provider has usage and attribution terms. [Open-Meteo](https://open-meteo.com/en/docs/air-quality-api) · [CAMS](https://atmosphere.copernicus.eu/) · [US AQI](https://www.airnow.gov/aqi/aqi-basics/)
+
+The catalogue provides general pollution-prevention information. It draws on guidance for reducing exposure, managing indoor particles, choosing air cleaners and maintaining ventilation. [WHO](https://www.who.int/news-room/questions-and-answers/item/air-pollution-personal-interventions-and-risk-communication) · [EPA on air cleaners](https://www.epa.gov/indoor-air-quality-iaq/guide-air-cleaners-home) · [EPA on indoor particles](https://www.epa.gov/indoor-air-quality-iaq/indoor-particulate-matter) · [EPA on ventilation](https://www.epa.gov/indoor-air-quality-iaq/improving-indoor-air-quality)
+
+The app keeps household inputs in page memory. City search sends the search text to Open-Meteo. AI personalization sends the selected city name, preferences and optional goal to Google. Leave personal medical details out of the goal. Provider retention terms apply. The paid AI route uses a private token. Distributed usage quotas and manual screen-reader evaluation remain open.
