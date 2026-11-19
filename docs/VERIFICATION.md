@@ -4,7 +4,7 @@
 | --- | --- |
 | Formatting, scoped ESLint rules, strict type checking, production build | Passed on Node 24 |
 | Unit, API and DOM workflow tests | 84 passed |
-| Playwright workflows | Three workflows at each of two Chromium viewports, 1280 × 800 and 360 × 800 |
+| Playwright workflows | All six passed, three workflows at each of two Chromium viewports, 1280 × 800 and 360 × 800 |
 | Automated accessibility | Empty and populated plans in a real browser, including the color-contrast rule. Zero violations across the four tested states. |
 | Dependencies | `npm audit --audit-level=high` reported zero known vulnerabilities at the time of testing |
 
@@ -47,16 +47,16 @@ npm run test:browser
 
 The browser suite starts a local server on port 4186. To use an installed Chrome instead, set `AIRWISE_BROWSER_CHANNEL=chrome`. CI installs the Chromium build paired with the locked Playwright version. [CI workflow](../.github/workflows/verify.yml)
 
-## Production verification of the previous release
+## Production verification
 
-On 19 November 2026, the production homepage returned HTTP 200 and served JavaScript byte-for-byte identical to the 37,726-byte release artifact. The independent CI run also passed every gate, including both browser viewports. [Tested revision](https://github.com/kavsrd13/clausecompass/commit/3f43869a3a508eacecbce1d90519ac7574dd9b67) · [CI run](https://github.com/kavsrd13/clausecompass/actions/runs/44460259411) · [Production](https://airwise-pearl.vercel.app)
+On 19 November 2026, Chrome opened the public production site, searched for Pune, requested a live forecast and personalized a fictional family plan through the UI. The published JavaScript matched the reviewed 40,649-byte build byte-for-byte. The independent Linux CI run also passed all 84 Node tests and six browser workflows. [Tested revision](https://github.com/kavsrd13/clausecompass/commit/417ecd9329c9ed924c3040f8fcbbe34755955f8b) · [CI run](https://github.com/kavsrd13/clausecompass/actions/runs/44470745669) · [Production](https://airwise-pearl.vercel.app)
 
 | Live request | Observed result |
 | --- | --- |
 | Public city search for Pune | HTTP 200, five validated matches |
-| Public New Delhi forecast | HTTP 200, 24 modelled hourly entries |
+| Public forecast for the selected Pune location | HTTP 200, 24 modelled hourly entries |
 | Personalization without an app token | HTTP 401 |
-| Personalization with an authorized app token | HTTP 200, seven eligible actions, expected mandatory ordering and 80 km travel scenario |
+| Personalization with an authorized app token | HTTP 200, seven eligible actions displayed, expected mandatory ordering, 80 km travel scenario and a downloadable plan |
 
 To repeat the live Gemini check, set `APP_URL` and the corresponding private app access token and run `node --env-file=.env.local scripts/live.mjs`. [Access guide](ACCESS.md)
 
