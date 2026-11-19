@@ -17,8 +17,25 @@ export default [
     },
   },
   {
+    files: ["main.js", "lib/**/*.js", "api/**/*.js"],
+    rules: {
+      complexity: ["error", 10],
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+    },
+  },
+  {
     files: ["main.js", "lib/*.js", "lib/client/**/*.js"],
     rules: {
+      "no-restricted-globals": [
+        "error",
+        "process",
+        "Buffer",
+        "require",
+        "__dirname",
+        "__filename",
+      ],
       "no-restricted-imports": [
         "error",
         {

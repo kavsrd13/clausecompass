@@ -1,7 +1,7 @@
 import { requestSchema } from "../lib/contracts.js";
 import { buildPlan, orderActions } from "../lib/air.js";
 import { fetchAir } from "../lib/server/air.js";
-import { allowRequest, isAuthorized } from "../lib/server/http.js";
+import { allowRequest, requireAccess } from "../lib/server/http.js";
 import { prioritize, ProviderError } from "../lib/server/gemini.js";
 
 function readConfig() {
@@ -32,10 +32,15 @@ export function createAnalyzeHandler({
       return res.status(503).json({
         error: "Gemini is not configured. Use the guidance-only planner.",
       });
-    if (!isAuthorized(req, settings.accessToken))
-      return res
-        .status(401)
-        .json({ error: "Enter the app access token for AI personalization." });
+    if (
+      !requireAccess(
+        req,
+        res,
+        settings.accessToken,
+        "Enter the app access token for AI personalization.",
+      )
+    )
+      return;
     try {
       const snapshot = await fetchAir(parsed.data, fetcher, now());
       const plan = buildPlan(parsed.data, snapshot);

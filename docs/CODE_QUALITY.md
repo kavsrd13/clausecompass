@@ -27,4 +27,8 @@ The browser imports the tree-shakable validation API from the existing Zod depen
 
 The shared forecast contract checks time units, freshness at retrieval, the current reading and the ordered 24-hour window. The browser verifies the returned household and eligible IDs before using the ranking. It rebuilds safety instructions, sources and travel figures from the same domain code used by the server.
 
-`npm run verify` checks formatting, lint, types, tests with coverage, and the production build. `npm run test:browser` exercises the rendered application. The coverage report measures the API endpoints, server adapters and shared domain modules exercised by Node. Browser workflows have a separate test result.
+`npm run verify` runs the same checks locally and in CI. Application functions have a cyclomatic complexity limit of 10. ESLint also disallows dynamic code execution in app modules and Node globals in browser and shared code. The compiler rejects unused declarations, unreachable code and switch fallthrough.
+
+The Node coverage gates require 98% each for lines, branches and functions across instrumented API, server, shared and client modules. Client measurements cover the HTTP client, renderer and Markdown export. The bundled entry point and form wiring run through DOM and Playwright workflows. A production build also checks the compressed JavaScript against a 16 KiB budget for mobile delivery. These thresholds are AirWise project decisions.
+
+Both protected endpoints use the same bearer-token check and return a bearer challenge on HTTP 401. Gemini model discovery follows continuation tokens under one 15-second deadline and reports a provider failure if a later page fails or a token repeats. [HTTP authentication challenges](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.2) · [Gemini model listing](https://aistudio.google.com/api-reference/models/list-models)

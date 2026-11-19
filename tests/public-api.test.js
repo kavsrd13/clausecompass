@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import air from "../api/air.js";
-import models from "../api/models.js";
+import locations from "../api/locations.js";
+import models, { handleModels } from "../api/models.js";
 import { snapshotSchema } from "../lib/contracts.js";
 import { airResponse, now, profile, responseRecorder } from "./fixtures.js";
 
@@ -59,8 +60,45 @@ test("method and access checks run before any model or air lookup", async (t) =>
   await air({ ...request, method: "GET" }, wrongMethod);
   assert.equal(wrongMethod.code, 405);
   assert.equal(wrongMethod.headers.Allow, "POST");
+  for (const [handler, method, allowed] of [
+    [models, "POST", "GET"],
+    [locations, "GET", "POST"],
+  ]) {
+    const response = responseRecorder();
+    await handler({ method, headers: {} }, response);
+    assert.equal(response.code, 405);
+    assert.equal(response.headers.Allow, allowed);
+  }
   const unauthorized = responseRecorder();
   await models({ method: "GET", headers: { host: "localhost" } }, unauthorized);
   assert.equal(unauthorized.code, 401);
+  assert.equal(
+    unauthorized.headers["WWW-Authenticate"],
+    'Bearer realm="AirWise"',
+  );
   assert.equal(lookup.mock.callCount(), 0);
+});
+
+test("bearer authentication accepts case-insensitive schemes and rejects ambiguous headers", async (t) => {
+  const config = {
+    APP_ACCESS_TOKEN: "fixture-token",
+    GEMINI_API_KEY: "fixture-key",
+  };
+  const lookup = t.mock.fn(async () => Response.json({ models: [] }));
+  for (const [authorization, expected] of [
+    ["bearer  fixture-token", 200],
+    ["Bearer FIXTURE-TOKEN", 401],
+    [["Bearer fixture-token"], 401],
+    ["Basic fixture-token", 401],
+  ]) {
+    const response = responseRecorder();
+    await handleModels(
+      { method: "GET", headers: { authorization } },
+      response,
+      config,
+      lookup,
+    );
+    assert.equal(response.code, expected);
+  }
+  assert.equal(lookup.mock.callCount(), 1);
 });

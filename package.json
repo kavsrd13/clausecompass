@@ -10,7 +10,7 @@
     "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.js",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"api/*.js\" --test-coverage-include=\"lib/*.js\" --test-coverage-include=\"lib/server/*.js\" --test tests/*.test.js",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-include=\"api/*.js\" --test-coverage-include=\"lib/*.js\" --test-coverage-include=\"lib/server/*.js\" --test-coverage-include=\"lib/client/*.js\" --test-coverage-lines=98 --test-coverage-branches=98 --test-coverage-functions=98 --test tests/*.test.js",
     "test:browser": "playwright test",
     "format:check": "prettier --check main.js style.css index.html api lib tests scripts types *.json *.config.js",
     "lint": "eslint . --max-warnings=0",

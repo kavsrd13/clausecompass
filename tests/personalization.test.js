@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildPlan, demoSnapshot } from "../lib/air.js";
 import { loadPersonalization } from "../lib/client/api.js";
+import { createBrief } from "../lib/client/export.js";
 import { now, profile } from "./fixtures.js";
 
 function modelledPlan() {
@@ -21,6 +22,14 @@ function receivePlan(t, response) {
     "test-only",
   );
 }
+
+test("a guidance-only response cannot be presented as AI personalization", async (t) => {
+  const response = { ...modelledPlan(), ai: false };
+  await assert.rejects(
+    receivePlan(t, response),
+    /personalization is unavailable/,
+  );
+});
 
 for (const [field, value] of [
   ["city", "London"],
@@ -46,6 +55,7 @@ test("AI ordering preserves the catalogue's guidance, sources, travel calculatio
     mandatory: false,
   }));
   const plan = await receivePlan(t, response);
+  assert.match(createBrief(plan), /AI-prioritized/);
   const expected = modelledPlan();
   assert.equal(plan.avoidedKm, 80);
   assert.equal(plan.category, expected.category);
