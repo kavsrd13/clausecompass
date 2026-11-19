@@ -4,7 +4,7 @@
 | --- | --- |
 | Formatting, scoped ESLint rules, strict type checking, production build | Passed on Node 24 |
 | Unit, API and DOM workflow tests | 57 passed |
-| Playwright workflows | Two scenarios on each of two Chromium viewports, 1280 × 800 and 360 × 800 |
+| Playwright workflows | All four passed, two scenarios on each of two Chromium viewports, 1280 × 800 and 360 × 800 |
 | Automated accessibility | Empty and populated plans in a real browser, including the color-contrast rule. Zero violations across the four tested states. |
 | Dependencies | `npm audit --audit-level=high` reported zero known vulnerabilities at the time of testing |
 
@@ -35,6 +35,15 @@ The browser suite starts a local server on port 4186. To use an installed Chrome
 
 ## Production verification
 
-City search and forecasts use Open-Meteo. On 18 November, the prior production revision also returned a successful authenticated Gemini plan. To test a deployed revision with current data, set `APP_URL` and the corresponding private app access token and run `node --env-file=.env.local scripts/live.mjs`. The script verifies the plan contract, travel arithmetic, eligible action set and mandatory ordering. [Access guide](ACCESS.md)
+On 19 November 2026, the production homepage returned HTTP 200 and served JavaScript byte-for-byte identical to the 37,726-byte release artifact. The independent CI run also passed every gate, including both browser viewports. [Tested revision](https://github.com/kavsrd13/clausecompass/commit/3f43869a3a508eacecbce1d90519ac7574dd9b67) · [CI run](https://github.com/kavsrd13/clausecompass/actions/runs/44460259411) · [Production](https://airwise-pearl.vercel.app)
+
+| Live request | Observed result |
+| --- | --- |
+| Public city search for Pune | HTTP 200, five validated matches |
+| Public New Delhi forecast | HTTP 200, 24 modelled hourly entries |
+| Personalization without an app token | HTTP 401 |
+| Personalization with an authorized app token | HTTP 200, seven eligible actions, expected mandatory ordering and 80 km travel scenario |
+
+To repeat the live Gemini check, set `APP_URL` and the corresponding private app access token and run `node --env-file=.env.local scripts/live.mjs`. [Access guide](ACCESS.md)
 
 A browser test with provider fixtures establishes application behavior. A live request checks current provider availability. Neither measures long-term model accuracy. Manual screen-reader evaluation and professional review of the guidance catalogue remain open.
