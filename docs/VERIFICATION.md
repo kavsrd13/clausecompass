@@ -1,5 +1,13 @@
 # Verification · 19 November 2026
 
+## Current application release
+
+Application revision [7ec854a](https://github.com/kavsrd13/clausecompass/commit/7ec854a) passed `npm run verify` with 105 Node tests and zero failures. The measured modules reached 100% line coverage, 98.13% branch coverage and 100% function coverage. The build produced 44,900 bytes of browser JavaScript (16,018 bytes gzip); npm audit reported zero known vulnerabilities.
+
+Fixed-clock tests cover an elapsed window, a partially elapsed first hour, and an open plan advancing across an hour boundary. Demo forecasts use their fictional retrieval time. The bundled download workflow reads the generated Markdown and checks the selected two-day commute (80 km baseline, 48 km remaining, 32 km replaced) and a two-hour window in UTC. Reset tests check text, handlers and a reply arriving after cancellation. These tests run in Node and a simulated DOM.
+
+## Earlier planner and provider refactor
+
 The planner and provider refactor passed 98 Node tests and six desktop and phone-width browser workflows. The Node suite exercised 100% of lines, 98.88% of branches and 100% of functions across the measured modules. The production JavaScript bundle measured 40,832 bytes, or 14,698 bytes gzip. The dependency audit returned zero known vulnerabilities at verification time.
 
 For the same burst of 20 synthetic public requests at identical coordinates, the previous handler made 20 upstream calls and the revised handler made one. All callers received HTTP 200 in both runs. This measures duplicate work within a single running instance. Production throughput and cross-instance concurrency depend on the hosting platform and provider. Run `node --test tests/forecast-requests.test.js` to verify sharing, retry and capacity behavior.
